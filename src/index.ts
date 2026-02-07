@@ -1,14 +1,8 @@
 import { Hono } from 'hono'
+import { ReserveRecord } from './types/reserve'
 
 type Bindings = {
   reserve: D1Database
-}
-
-interface Reserve {
-  id: number
-  name: string
-  contact?: string | null
-  reserved_at: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -24,10 +18,19 @@ const parseJson = async <T>(c: any): Promise<T> => {
 // GET all reserves
 app.get('/reserves', async (c) => {
   try {
-    const query = 'SELECT id, name, contact, reserved_at FROM reserves ORDER BY reserved_at DESC'
-    const { results } = await c.env.reserve.prepare(query).all<Reserve>()
+    const query = `SELECT id, params, execute_at, status, alarm_namespace, alarm_object_id,
+      alarm_scheduled_at, created_at FROM reserves ORDER BY execute_at DESC`
+    const { results } = await c.env.reserve.prepare(query).all<ReserveRecord>()
 
-    return c.json({ reserves: results ?? [] })
+    const reserves = (results ?? []).map((record) => {
+      try {
+        return { ...record, params: JSON.parse(record.params) }
+      } catch {
+        return record
+      }
+    })
+
+    return c.json({ reserves })
   } catch (error) {
     return c.json({ error: 'Failed to fetch reserves', details: `${error}` }, 500)
   }
@@ -43,9 +46,10 @@ app.get('/reserve/:id', async (c) => {
 
   try {
     const { results } = await c.env.reserve
-      .prepare('SELECT id, name, contact, reserved_at FROM reserves WHERE id = ?1')
+      .prepare(`SELECT id, params, execute_at, status, alarm_namespace, alarm_object_id,
+        alarm_scheduled_at, created_at FROM reserves WHERE id = ?1`)
       .bind(id)
-      .all<Reserve>()
+      .all<ReserveRecord>()
 
     const reserve = results?.[0]
 
@@ -53,7 +57,15 @@ app.get('/reserve/:id', async (c) => {
       return c.json({ error: 'Reserve not found' }, 404)
     }
 
-    return c.json({ reserve })
+    let parsedParams: unknown = reserve.params
+
+    try {
+      parsedParams = JSON.parse(reserve.params)
+    } catch {
+      parsedParams = reserve.params
+    }
+
+    return c.json({ reserve: { ...reserve, params: parsedParams } })
   } catch (error) {
     return c.json({ error: 'Failed to fetch reserve', details: `${error}` }, 500)
   }
@@ -61,29 +73,66 @@ app.get('/reserve/:id', async (c) => {
 
 // POST create reserve
 app.post('/reserve', async (c) => {
-  let payload: { name?: string; contact?: string; reserved_at?: string }
+  type Payload = {
+    params?: unknown
+    execute_at?: string
+    status?: string
+    alarm_namespace?: string
+    alarm_object_id?: string
+    alarm_scheduled_at?: string
+  }
+
+  let payload: Payload
 
   try {
-    payload = await parseJson<typeof payload>(c)
+    payload = await parseJson<Payload>(c)
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400)
   }
 
-  const { name, contact = null, reserved_at } = payload
-
-  if (!name) {
-    return c.json({ error: 'name is required' }, 400)
+  if (typeof payload.params === 'undefined') {
+    return c.json({ error: 'params is required' }, 400)
   }
 
-  const reservedAtIso = reserved_at ?? new Date().toISOString()
+  const paramsJson =
+    typeof payload.params === 'string' ? payload.params : JSON.stringify(payload.params)
+
+  const executeAt = payload.execute_at ?? new Date().toISOString()
+  const status = payload.status ?? 'pending'
+  const alarmNamespace = payload.alarm_namespace ?? 'reserve'
+  const alarmObjectId = payload.alarm_object_id ?? crypto.randomUUID()
+  const alarmScheduledAt = payload.alarm_scheduled_at ?? executeAt
+  const createdAt = new Date().toISOString()
 
   try {
     const inserted = await c.env.reserve
-      .prepare('INSERT INTO reserves (name, contact, reserved_at) VALUES (?1, ?2, ?3) RETURNING id')
-      .bind(name, contact, reservedAtIso)
+      .prepare(`INSERT INTO reserves (
+        params, execute_at, status, alarm_namespace, alarm_object_id, alarm_scheduled_at, created_at
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) RETURNING id`)
+      .bind(
+        paramsJson,
+        executeAt,
+        status,
+        alarmNamespace,
+        alarmObjectId,
+        alarmScheduledAt,
+        createdAt
+      )
       .first<{ id: number }>()
 
-    return c.json({ id: inserted?.id, name, contact, reserved_at: reservedAtIso }, 201)
+    return c.json(
+      {
+        id: inserted?.id,
+        params: payload.params,
+        execute_at: executeAt,
+        status,
+        alarm_namespace: alarmNamespace,
+        alarm_object_id: alarmObjectId,
+        alarm_scheduled_at: alarmScheduledAt,
+        created_at: createdAt,
+      },
+      201
+    )
   } catch (error) {
     return c.json({ error: 'Failed to create reserve', details: `${error}` }, 500)
   }
