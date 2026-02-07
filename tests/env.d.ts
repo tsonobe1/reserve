@@ -1,6 +1,6 @@
-/// <reference path="../worker-configuration.d.ts" />
+import '../worker-configuration.d.ts'
 
-declare module "cloudflare:test" {
+declare module 'cloudflare:test' {
   // ProvidedEnv controls the type of `import("cloudflare:test").env`
-  interface ProvidedEnv extends Cloudflare.Env {}
+  type ProvidedEnv = Cloudflare.Env
 }

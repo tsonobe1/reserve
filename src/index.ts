@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { Context } from 'hono'
 import { ReserveRecord } from './types/reserve'
 
 type Bindings = {
@@ -7,10 +8,10 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-const parseJson = async <T>(c: any): Promise<T> => {
+const parseJson = async <T>(c: Context<{ Bindings: Bindings }>): Promise<T> => {
   try {
     return await c.req.json<T>()
-  } catch (error) {
+  } catch {
     throw new Error('Invalid JSON payload')
   }
 }
@@ -18,8 +19,16 @@ const parseJson = async <T>(c: any): Promise<T> => {
 // GET all reserves
 app.get('/reserves', async (c) => {
   try {
-    const query = `SELECT id, params, execute_at, status, alarm_namespace, alarm_object_id,
-      alarm_scheduled_at, created_at FROM reserves ORDER BY execute_at DESC`
+    const query = `SELECT id,
+                          params,
+                          execute_at,
+                          status,
+                          alarm_namespace,
+                          alarm_object_id,
+                          alarm_scheduled_at,
+                          created_at
+                   FROM reserves
+                   ORDER BY execute_at DESC`
     const { results } = await c.env.reserve.prepare(query).all<ReserveRecord>()
 
     const reserves = (results ?? []).map((record) => {
@@ -46,8 +55,10 @@ app.get('/reserve/:id', async (c) => {
 
   try {
     const { results } = await c.env.reserve
-      .prepare(`SELECT id, params, execute_at, status, alarm_namespace, alarm_object_id,
-        alarm_scheduled_at, created_at FROM reserves WHERE id = ?1`)
+      .prepare(
+        `SELECT id, params, execute_at, status, alarm_namespace, alarm_object_id,
+        alarm_scheduled_at, created_at FROM reserves WHERE id = ?1`
+      )
       .bind(id)
       .all<ReserveRecord>()
 
@@ -106,9 +117,11 @@ app.post('/reserve', async (c) => {
 
   try {
     const inserted = await c.env.reserve
-      .prepare(`INSERT INTO reserves (
+      .prepare(
+        `INSERT INTO reserves (
         params, execute_at, status, alarm_namespace, alarm_object_id, alarm_scheduled_at, created_at
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) RETURNING id`)
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) RETURNING id`
+      )
       .bind(
         paramsJson,
         executeAt,
