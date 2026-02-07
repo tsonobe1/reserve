@@ -1,0 +1,21 @@
+name = "reserve"
+main = "src/index.ts"
+compatibility_date = "2026-02-05"
+
+[[d1_databases]]
+binding = "reserve"
+database_name = "reserve-dev"
+database_id = "4b339fc4-ebc8-4cdb-a013-1c58fa47102b"
+
+[env.test]
+[[env.test.d1_databases]]
+binding = "reserve"
+database_name = "reserve-test"
+database_id = "4c854735-0f33-4249-9e23-f681d78d32c3"
+
+[env.production]
+[[env.production.d1_databases]]
+binding = "reserve"
+database_name = "reserve"
+database_id = "9e9592f3-96e7-4cb5-bc90-7d968d5a6b2d"
+remote = true

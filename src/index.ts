@@ -24,9 +24,8 @@ const parseJson = async <T>(c: any): Promise<T> => {
 // GET all reserves
 app.get('/reserves', async (c) => {
   try {
-    const { results } = await c.env.reserve
-      .prepare('SELECT id, name, contact, reserved_at FROM reserves ORDER BY reserved_at DESC')
-      .all<Reserve>()
+    const query = 'SELECT id, name, contact, reserved_at FROM reserves ORDER BY reserved_at DESC'
+    const { results } = await c.env.reserve.prepare(query).all<Reserve>()
 
     return c.json({ reserves: results ?? [] })
   } catch (error) {
