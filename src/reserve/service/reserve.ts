@@ -53,7 +53,7 @@ export const createReserve = async (
 
 export const deleteReserve = async (db: D1Database, id: number): Promise<boolean> => {
   const changes = await remove(db, id)
-  return changes > 0
+  return changes === 1
 }
 
 const buildInsertValues = (payload: ReserveCreatePayload): InsertReserveValues => {
