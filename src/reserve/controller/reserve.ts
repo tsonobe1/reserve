@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import type { Context } from 'hono'
+import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod'
 import { ReservePayloadSchema } from '../domain/reserve-payload'
 import { createReserve, getReserve, getReserves } from '../service/reserve'
 
@@ -8,14 +9,6 @@ type Bindings = {
 }
 
 const reserves = new Hono<{ Bindings: Bindings }>()
-
-const parseJson = async (c: Context<{ Bindings: Bindings }>): Promise<unknown> => {
-  try {
-    return await c.req.json()
-  } catch {
-    throw new Error('Invalid JSON payload')
-  }
-}
 
 // GET all reserves
 reserves.get('/', async (c) => {
@@ -49,34 +42,30 @@ reserves.get('/:id', async (c) => {
 })
 
 // POST create reserve
-reserves.post('/', async (c) => {
-  let payload: unknown
+reserves.post(
+  '/',
+  zValidator('json', ReservePayloadSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Invalid reserve payload',
+          details: z.flattenError(result.error),
+        },
+        400
+      )
+    }
+  }),
+  async (c) => {
+    const payload = c.req.valid('json')
 
-  try {
-    payload = await parseJson(c)
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400)
+    try {
+      const reserve = await createReserve(c.env.reserve, payload)
+      return c.json(reserve, 201)
+    } catch (error) {
+      return c.json({ error: 'Failed to create reserve', details: `${error}` }, 500)
+    }
   }
-
-  const result = ReservePayloadSchema.safeParse(payload)
-
-  if (!result.success) {
-    return c.json(
-      {
-        error: 'Invalid reserve payload',
-        details: result.error.flatten(),
-      },
-      400
-    )
-  }
-
-  try {
-    const reserve = await createReserve(c.env.reserve, result.data)
-    return c.json(reserve, 201)
-  } catch (error) {
-    return c.json({ error: 'Failed to create reserve', details: `${error}` }, 500)
-  }
-})
+)
 
 // DELETE reserve
 reserves.delete('/:id', async (c) => {

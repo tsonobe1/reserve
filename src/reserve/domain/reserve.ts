@@ -1,10 +1,10 @@
 export type ReserveRecord = {
   id: number
-  params: string
-  execute_at: string
+  params: unknown
+  executeAt: string
   status: string
-  alarm_namespace: string
-  alarm_object_id: string
-  alarm_scheduled_at: string
-  created_at: string
+  doNamespace: string
+  doId: string
+  doScheduledAt: string
+  createdAt: string
 }

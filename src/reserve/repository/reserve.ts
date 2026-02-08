@@ -1,46 +1,46 @@
 import type { ReserveRecord } from '../domain/reserve'
 
-export type InsertReserveValues = {
+type PersistedReserveValues = Omit<ReserveRecord, 'id' | 'params'> & {
   params: string
-  execute_at: string
-  status: string
-  alarm_namespace: string
-  alarm_object_id: string
-  alarm_scheduled_at: string
-  created_at: string
 }
 
-export const getAll = async (db: D1Database): Promise<ReserveRecord[]> => {
+export type InsertReserveValues = PersistedReserveValues
+
+export type ReserveRow = {
+  id: number
+} & PersistedReserveValues
+
+export const getAll = async (db: D1Database): Promise<ReserveRow[]> => {
   const query = `select id,
-                        params,
-                        execute_at,
-                        status,
-                        alarm_namespace,
-                        alarm_object_id,
-                        alarm_scheduled_at,
-                        created_at
+                        params as params,
+                        execute_at as executeAt,
+                        status as status,
+                        do_namespace as doNamespace,
+                        do_id as doId,
+                        do_scheduled_at as doScheduledAt,
+                        created_at as createdAt
                  from reserves
                  order by execute_at desc`
 
-  const { results } = await db.prepare(query).all<ReserveRecord>()
+  const { results } = await db.prepare(query).all<ReserveRow>()
 
   return results ?? []
 }
 
-export const get = async (db: D1Database, id: number): Promise<ReserveRecord | null> => {
+export const get = async (db: D1Database, id: number): Promise<ReserveRow | null> => {
   // TODO: Durable Object から取得する必要がある
   const query = `select id,
-                        params,
-                        execute_at,
-                        status,
-                        alarm_namespace,
-                        alarm_object_id,
-                        alarm_scheduled_at,
-                        created_at
+                        params as params,
+                        execute_at as executeAt,
+                        status as status,
+                        do_namespace as doNamespace,
+                        do_id as doId,
+                        do_scheduled_at as doScheduledAt,
+                        created_at as createdAt
                  from reserves
                  where id = ?1`
 
-  const record = await db.prepare(query).bind(id).first<ReserveRecord>()
+  const record = await db.prepare(query).bind(id).first<ReserveRow>()
 
   return record ?? null
 }
@@ -52,9 +52,9 @@ export const insert = async (
   const query = `insert into reserves (params,
                                       execute_at,
                                       status,
-                                      alarm_namespace,
-                                      alarm_object_id,
-                                      alarm_scheduled_at,
+                                      do_namespace,
+                                      do_id,
+                                      do_scheduled_at,
                                       created_at)
                  values (?1, ?2, ?3, ?4, ?5, ?6, ?7)
                  returning id`
@@ -63,12 +63,12 @@ export const insert = async (
     .prepare(query)
     .bind(
       values.params,
-      values.execute_at,
+      values.executeAt,
       values.status,
-      values.alarm_namespace,
-      values.alarm_object_id,
-      values.alarm_scheduled_at,
-      values.created_at
+      values.doNamespace,
+      values.doId,
+      values.doScheduledAt,
+      values.createdAt
     )
     .first<{ id: number }>()
 

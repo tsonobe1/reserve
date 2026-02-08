@@ -42,33 +42,31 @@ export const createReserve = async (
   return {
     id: insertedId,
     params: payload.params,
-    execute_at: values.execute_at,
+    executeAt: values.executeAt,
     status: values.status,
-    alarm_namespace: values.alarm_namespace,
-    alarm_object_id: values.alarm_object_id,
-    alarm_scheduled_at: values.alarm_scheduled_at,
-    created_at: values.created_at,
+    doNamespace: values.doNamespace,
+    doId: values.doId,
+    doScheduledAt: values.doScheduledAt,
+    createdAt: values.createdAt,
   }
 }
 
 const buildInsertValues = (payload: ReservePayload): InsertReserveValues => {
-  const paramsJson =
-    typeof payload.params === 'string' ? payload.params : JSON.stringify(payload.params)
+  const paramsJson = JSON.stringify(payload.params)
 
-  const executeAt = payload.execute_at ?? new Date().toISOString()
-  const status = payload.status ?? 'pending'
-  const alarmNamespace = payload.alarm_namespace ?? 'reserve'
-  const alarmObjectId = payload.alarm_object_id ?? crypto.randomUUID()
-  const alarmScheduledAt = payload.alarm_scheduled_at ?? executeAt
+  const executeAt = payload.executeAt
+  const status = 'pending'
+  const doNamespace = 'reserve'
+  const doId = crypto.randomUUID()
   const createdAt = new Date().toISOString()
 
   return {
     params: paramsJson,
-    execute_at: executeAt,
+    executeAt,
     status,
-    alarm_namespace: alarmNamespace,
-    alarm_object_id: alarmObjectId,
-    alarm_scheduled_at: alarmScheduledAt,
-    created_at: createdAt,
+    doNamespace,
+    doId,
+    doScheduledAt: executeAt,
+    createdAt,
   }
 }

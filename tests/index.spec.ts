@@ -27,9 +27,9 @@ const seed = async (): Promise<number> => {
       `insert into reserves (params,
                              execute_at,
                              status,
-                             alarm_namespace,
-                             alarm_object_id,
-                             alarm_scheduled_at,
+                             do_namespace,
+                             do_id,
+                             do_scheduled_at,
                              created_at)
        values (?1, ?2, ?3, ?4, ?5, ?6, ?7)
        returning id`
@@ -94,11 +94,8 @@ describe('Reserve API', () => {
     it('予約を作成できる', async () => {
       const requestPayload = {
         params: { name: 'New Guest', contact: 'new@example.com' },
-        execute_at: '2026-03-01T10:00:00.000Z',
+        executeAt: '2026-03-01T10:00:00.000Z',
         status: 'pending',
-        alarm_namespace: 'reserve',
-        alarm_object_id: 'new-object-id',
-        alarm_scheduled_at: '2026-03-01T09:55:00.000Z',
       }
 
       const response = await SELF.fetch(
@@ -114,12 +111,64 @@ describe('Reserve API', () => {
       const payload = (await response.json()) as {
         id: number
         params: unknown
-        execute_at: string
+        executeAt: string
+        status: string
       }
 
       expect(payload.id).toBeTruthy()
       expect(payload.params).toStrictEqual(requestPayload.params)
-      expect(payload.execute_at).toBe(requestPayload.execute_at)
+      expect(payload.executeAt).toBe(requestPayload.executeAt)
+      expect(payload.status).toBe('pending')
+    })
+
+    it('params がオブジェクトでない場合は 400 を返す', async () => {
+      const response = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            params: 'not-an-object',
+          }),
+        })
+      )
+
+      expect(response.status).toBe(400)
+    })
+
+    it('status を指定しても pending で作成される', async () => {
+      const response = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            params: { name: 'Force Pending' },
+            executeAt: '2026-03-01T11:00:00.000Z',
+            status: 'done',
+          }),
+        })
+      )
+
+      expect(response.status).toBe(201)
+
+      const payload = (await response.json()) as {
+        status: string
+      }
+
+      expect(payload.status).toBe('pending')
+    })
+
+    it('executeAt が未指定の場合は 400 を返す', async () => {
+      const response = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            params: { name: 'Missing Execute At' },
+          }),
+        })
+      )
+
+      expect(response.status).toBe(400)
     })
   })
 })
