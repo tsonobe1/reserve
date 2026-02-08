@@ -1,15 +1,14 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { ReserveRecord } from '../../types/reserve'
-import ReserveService from '../service/index'
+import { ReserveRecord } from '../domain/reserve'
+import { ReserveService } from '../service/reserve'
 
 type Bindings = {
   reserve: D1Database
 }
 
-export type ReserveBindings = Bindings
-
 const reserves = new Hono<{ Bindings: Bindings }>()
+const reserveService = new ReserveService()
 
 const parseJson = async <T>(c: Context<{ Bindings: Bindings }>): Promise<T> => {
   try {
@@ -22,27 +21,8 @@ const parseJson = async <T>(c: Context<{ Bindings: Bindings }>): Promise<T> => {
 // GET all reserves
 reserves.get('/', async (c) => {
   try {
-    const query = `SELECT id,
-                          params,
-                          execute_at,
-                          status,
-                          alarm_namespace,
-                          alarm_object_id,
-                          alarm_scheduled_at,
-                          created_at
-                   FROM reserves
-                   ORDER BY execute_at DESC`
-    const { results } = await c.env.reserve.prepare(query).all<ReserveRecord>()
-
-    const reserves = (results ?? []).map((record) => {
-      try {
-        return { ...record, params: JSON.parse(record.params) }
-      } catch {
-        return record
-      }
-    })
-
-    return c.json({ reserves })
+    const reserves = await reserveService.getReserves(c.env.reserve)
+    return c.json({ reserves: reserves })
   } catch (error) {
     return c.json({ error: 'Failed to fetch reserves', details: `${error}` }, 500)
   }

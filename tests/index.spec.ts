@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { SELF, env } from 'cloudflare:test'
 import schemaSql from '../schema.sql?raw'
-import type { ReserveRecord } from '../src/types/reserve'
+import type { ReserveRecord } from '../src/reserve/domain'
 
 const schemaStatements = schemaSql
   .split(';')

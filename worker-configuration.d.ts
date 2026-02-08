@@ -3,7 +3,7 @@
 // Runtime types generated with workerd@1.20260205.0 2026-02-05 
 declare namespace Cloudflare {
 	interface GlobalProps {
-		mainModule: typeof import("./src/reserve/controller");
+		mainModule: typeof import("./src/reserve/controller/reserve");
 	}
 	interface TestEnv {
 		reserve: D1Database;

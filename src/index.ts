@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import reserves from './reserve/controller'
+import reserves from './reserve/controller/reserve'
 
 const app = new Hono()
 
