@@ -1,9 +1,6 @@
 import type { ReserveRecord } from '../domain/reserve'
 import { get, getAll } from '../repository/reserve'
 
-/**
- * D1検索結果をJSONパースして返すドメインサービス関数
- */
 export const getReserves = async (db: D1Database): Promise<ReserveRecord[]> => {
   const records = await getAll(db)
 
