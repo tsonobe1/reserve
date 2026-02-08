@@ -1,5 +1,5 @@
 import type { ReserveRecord } from '../domain/reserve'
-import type { ReserveCreatePayload } from '../domain/reserve-create-payload'
+import type { ReserveCreatePayload } from '../domain/reserve-request-schema'
 import { get, getAll, insert, remove, type InsertReserveValues } from '../repository/reserve'
 
 export const getReserves = async (db: D1Database): Promise<ReserveRecord[]> => {

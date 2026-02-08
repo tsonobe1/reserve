@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { ReserveCreatePayloadSchema } from '../domain/reserve-create-payload'
+import { ReserveCreatePayloadSchema, ReserveIdParamSchema } from '../domain/reserve-request-schema'
 import { createReserve, deleteReserve, getReserve, getReserves } from '../service/reserve'
 
 type Bindings = {
@@ -9,7 +9,6 @@ type Bindings = {
 }
 
 const reserves = new Hono<{ Bindings: Bindings }>()
-
 // GET all reserves
 reserves.get('/', async (c) => {
   try {
@@ -21,25 +20,35 @@ reserves.get('/', async (c) => {
 })
 
 // GET single reserve
-reserves.get('/:id', async (c) => {
-  const id = Number(c.req.param('id'))
-
-  if (Number.isNaN(id)) {
-    return c.json({ error: 'Invalid reserve id' }, 400)
-  }
-
-  try {
-    const reserve = await getReserve(c.env.reserve, id)
-
-    if (!reserve) {
-      return c.json({ error: 'Reserve not found' }, 404)
+reserves.get(
+  '/:id',
+  zValidator('param', ReserveIdParamSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Invalid reserve id',
+          details: z.flattenError(result.error),
+        },
+        400
+      )
     }
+  }),
+  async (c) => {
+    const { id } = c.req.valid('param')
 
-    return c.json({ reserve })
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch reserve', details: `${error}` }, 500)
+    try {
+      const reserve = await getReserve(c.env.reserve, id)
+
+      if (!reserve) {
+        return c.json({ error: 'Reserve not found' }, 404)
+      }
+
+      return c.json({ reserve })
+    } catch (error) {
+      return c.json({ error: 'Failed to fetch reserve', details: `${error}` }, 500)
+    }
   }
-})
+)
 
 // POST create reserve
 reserves.post(
@@ -68,23 +77,33 @@ reserves.post(
 )
 
 // DELETE reserve
-reserves.delete('/:id', async (c) => {
-  const id = Number(c.req.param('id'))
-
-  if (Number.isNaN(id)) {
-    return c.json({ error: 'Invalid reserve id' }, 400)
-  }
-
-  try {
-    const deleted = await deleteReserve(c.env.reserve, id)
-    if (!deleted) {
-      return c.json({ error: 'Reserve not found' }, 404)
+reserves.delete(
+  '/:id',
+  zValidator('param', ReserveIdParamSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Invalid reserve id',
+          details: z.flattenError(result.error),
+        },
+        400
+      )
     }
+  }),
+  async (c) => {
+    const { id } = c.req.valid('param')
 
-    return c.json({ message: `Reserve ${id} deleted` })
-  } catch (error) {
-    return c.json({ error: 'Failed to delete reserve', details: `${error}` }, 500)
+    try {
+      const deleted = await deleteReserve(c.env.reserve, id)
+      if (!deleted) {
+        return c.json({ error: 'Reserve not found' }, 404)
+      }
+
+      return c.json({ message: `Reserve ${id} deleted` })
+    } catch (error) {
+      return c.json({ error: 'Failed to delete reserve', details: `${error}` }, 500)
+    }
   }
-})
+)
 
 export default reserves
