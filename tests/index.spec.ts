@@ -48,7 +48,6 @@ describe('GET /reserves', () => {
     const payload = (await response.json()) as {
       reserves: Array<ReserveRecord>
     }
-
     expect(payload.reserves).toHaveLength(1)
   })
 })
