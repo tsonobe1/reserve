@@ -1,14 +1,13 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { ReserveRecord } from '../domain/reserve'
-import { ReserveService } from '../service/reserve'
+import { getReserves } from '../service/reserve'
 
 type Bindings = {
   reserve: D1Database
 }
 
 const reserves = new Hono<{ Bindings: Bindings }>()
-const reserveService = new ReserveService()
 
 const parseJson = async <T>(c: Context<{ Bindings: Bindings }>): Promise<T> => {
   try {
@@ -21,8 +20,8 @@ const parseJson = async <T>(c: Context<{ Bindings: Bindings }>): Promise<T> => {
 // GET all reserves
 reserves.get('/', async (c) => {
   try {
-    const reserves = await reserveService.getReserves(c.env.reserve)
-    return c.json({ reserves: reserves })
+    const reserves = await getReserves(c.env.reserve)
+    return c.json({ reserves })
   } catch (error) {
     return c.json({ error: 'Failed to fetch reserves', details: `${error}` }, 500)
   }
