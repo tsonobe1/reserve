@@ -74,3 +74,10 @@ export const insert = async (
 
   return inserted?.id ?? null
 }
+
+export const remove = async (db: D1Database, id: number): Promise<number> => {
+  const query = 'delete from reserves where id = ?1'
+  const result = await db.prepare(query).bind(id).run()
+
+  return result.meta?.changes ?? 0
+}

@@ -1,6 +1,6 @@
 import type { ReserveRecord } from '../domain/reserve'
 import type { ReserveCreatePayload } from '../domain/reserve-create-payload'
-import { get, getAll, insert, type InsertReserveValues } from '../repository/reserve'
+import { get, getAll, insert, remove, type InsertReserveValues } from '../repository/reserve'
 
 export const getReserves = async (db: D1Database): Promise<ReserveRecord[]> => {
   const records = await getAll(db)
@@ -49,6 +49,11 @@ export const createReserve = async (
     doScheduledAt: values.doScheduledAt,
     createdAt: values.createdAt,
   }
+}
+
+export const deleteReserve = async (db: D1Database, id: number): Promise<boolean> => {
+  const changes = await remove(db, id)
+  return changes > 0
 }
 
 const buildInsertValues = (payload: ReserveCreatePayload): InsertReserveValues => {

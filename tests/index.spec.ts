@@ -171,4 +171,32 @@ describe('Reserve API', () => {
       expect(response.status).toBe(400)
     })
   })
+
+  describe('DELETE /reserves/:id', () => {
+    it('予約を削除できる', async () => {
+      const response = await SELF.fetch(
+        new Request(`http://localhost:8787/reserves/${seededReserveId}`, {
+          method: 'DELETE',
+        })
+      )
+
+      expect(response.status).toBe(200)
+
+      const payload = (await response.json()) as {
+        message: string
+      }
+
+      expect(payload.message).toBe(`Reserve ${seededReserveId} deleted`)
+    })
+
+    it('存在しない予約の削除は 404 を返す', async () => {
+      const response = await SELF.fetch(
+        new Request('http://localhost:8787/reserves/999999', {
+          method: 'DELETE',
+        })
+      )
+
+      expect(response.status).toBe(404)
+    })
+  })
 })

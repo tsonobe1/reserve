@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { ReserveCreatePayloadSchema } from '../domain/reserve-create-payload'
-import { createReserve, getReserve, getReserves } from '../service/reserve'
+import { createReserve, deleteReserve, getReserve, getReserves } from '../service/reserve'
 
 type Bindings = {
   reserve: D1Database
@@ -76,9 +76,8 @@ reserves.delete('/:id', async (c) => {
   }
 
   try {
-    const result = await c.env.reserve.prepare('DELETE FROM reserves WHERE id = ?1').bind(id).run()
-
-    if (!result.success || (result.meta?.changes ?? 0) === 0) {
+    const deleted = await deleteReserve(c.env.reserve, id)
+    if (!deleted) {
       return c.json({ error: 'Reserve not found' }, 404)
     }
 
