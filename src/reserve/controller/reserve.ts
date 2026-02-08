@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { ReservePayloadSchema } from '../domain/reserve-payload'
+import { ReserveCreatePayloadSchema } from '../domain/reserve-create-payload'
 import { createReserve, getReserve, getReserves } from '../service/reserve'
 
 type Bindings = {
@@ -44,7 +44,7 @@ reserves.get('/:id', async (c) => {
 // POST create reserve
 reserves.post(
   '/',
-  zValidator('json', ReservePayloadSchema, (result, c) => {
+  zValidator('json', ReserveCreatePayloadSchema, (result, c) => {
     if (!result.success) {
       return c.json(
         {
