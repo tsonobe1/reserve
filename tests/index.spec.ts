@@ -89,4 +89,37 @@ describe('Reserve API', () => {
       expect(payload.reserve.params).toStrictEqual(SEEDED_PARAMS)
     })
   })
+
+  describe('POST /reserves', () => {
+    it('予約を作成できる', async () => {
+      const requestPayload = {
+        params: { name: 'New Guest', contact: 'new@example.com' },
+        execute_at: '2026-03-01T10:00:00.000Z',
+        status: 'pending',
+        alarm_namespace: 'reserve',
+        alarm_object_id: 'new-object-id',
+        alarm_scheduled_at: '2026-03-01T09:55:00.000Z',
+      }
+
+      const response = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload),
+        })
+      )
+
+      expect(response.status).toBe(201)
+
+      const payload = (await response.json()) as {
+        id: number
+        params: unknown
+        execute_at: string
+      }
+
+      expect(payload.id).toBeTruthy()
+      expect(payload.params).toStrictEqual(requestPayload.params)
+      expect(payload.execute_at).toBe(requestPayload.execute_at)
+    })
+  })
 })

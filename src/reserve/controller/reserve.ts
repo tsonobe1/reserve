@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { getReserve, getReserves } from '../service/reserve'
+import { ReservePayloadSchema } from '../domain/reserve-payload'
+import { createReserve, getReserve, getReserves } from '../service/reserve'
 
 type Bindings = {
   reserve: D1Database
@@ -8,9 +9,9 @@ type Bindings = {
 
 const reserves = new Hono<{ Bindings: Bindings }>()
 
-const parseJson = async <T>(c: Context<{ Bindings: Bindings }>): Promise<T> => {
+const parseJson = async (c: Context<{ Bindings: Bindings }>): Promise<unknown> => {
   try {
-    return await c.req.json<T>()
+    return await c.req.json()
   } catch {
     throw new Error('Invalid JSON payload')
   }
@@ -49,68 +50,29 @@ reserves.get('/:id', async (c) => {
 
 // POST create reserve
 reserves.post('/', async (c) => {
-  type Payload = {
-    params?: unknown
-    execute_at?: string
-    status?: string
-    alarm_namespace?: string
-    alarm_object_id?: string
-    alarm_scheduled_at?: string
-  }
-
-  let payload: Payload
+  let payload: unknown
 
   try {
-    payload = await parseJson<Payload>(c)
+    payload = await parseJson(c)
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400)
   }
 
-  if (typeof payload.params === 'undefined') {
-    return c.json({ error: 'params is required' }, 400)
-  }
+  const result = ReservePayloadSchema.safeParse(payload)
 
-  const paramsJson =
-    typeof payload.params === 'string' ? payload.params : JSON.stringify(payload.params)
-
-  const executeAt = payload.execute_at ?? new Date().toISOString()
-  const status = payload.status ?? 'pending'
-  const alarmNamespace = payload.alarm_namespace ?? 'reserve'
-  const alarmObjectId = payload.alarm_object_id ?? crypto.randomUUID()
-  const alarmScheduledAt = payload.alarm_scheduled_at ?? executeAt
-  const createdAt = new Date().toISOString()
-
-  try {
-    const inserted = await c.env.reserve
-      .prepare(
-        `INSERT INTO reserves (
-        params, execute_at, status, alarm_namespace, alarm_object_id, alarm_scheduled_at, created_at
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) RETURNING id`
-      )
-      .bind(
-        paramsJson,
-        executeAt,
-        status,
-        alarmNamespace,
-        alarmObjectId,
-        alarmScheduledAt,
-        createdAt
-      )
-      .first<{ id: number }>()
-
+  if (!result.success) {
     return c.json(
       {
-        id: inserted?.id,
-        params: payload.params,
-        execute_at: executeAt,
-        status,
-        alarm_namespace: alarmNamespace,
-        alarm_object_id: alarmObjectId,
-        alarm_scheduled_at: alarmScheduledAt,
-        created_at: createdAt,
+        error: 'Invalid reserve payload',
+        details: result.error.flatten(),
       },
-      201
+      400
     )
+  }
+
+  try {
+    const reserve = await createReserve(c.env.reserve, result.data)
+    return c.json(reserve, 201)
   } catch (error) {
     return c.json({ error: 'Failed to create reserve', details: `${error}` }, 500)
   }
