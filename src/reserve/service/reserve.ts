@@ -33,21 +33,16 @@ export const createReserve = async (
   payload: ReserveCreatePayload
 ): Promise<ReserveRecord> => {
   const values = buildInsertValues(payload)
-  const insertedId = await insert(db, values)
+  const inserted = await insert(db, values)
 
-  if (!insertedId) {
+  if (!inserted) {
     throw new Error('Failed to insert reserve record')
   }
 
-  return {
-    id: insertedId,
-    params: payload.params,
-    executeAt: values.executeAt,
-    status: values.status,
-    doNamespace: values.doNamespace,
-    doId: values.doId,
-    doScheduledAt: values.doScheduledAt,
-    createdAt: values.createdAt,
+  try {
+    return { ...inserted, params: JSON.parse(inserted.params) }
+  } catch {
+    return { ...inserted, params: inserted.params }
   }
 }
 

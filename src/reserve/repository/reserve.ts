@@ -48,7 +48,7 @@ export const get = async (db: D1Database, id: number): Promise<ReserveRow | null
 export const insert = async (
   db: D1Database,
   values: InsertReserveValues
-): Promise<number | null> => {
+): Promise<ReserveRow | null> => {
   const query = `insert into reserves (params,
                                       execute_at,
                                       status,
@@ -57,7 +57,14 @@ export const insert = async (
                                       do_scheduled_at,
                                       created_at)
                  values (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-                 returning id`
+                 returning id,
+                           params as params,
+                           execute_at as executeAt,
+                           status as status,
+                           do_namespace as doNamespace,
+                           do_id as doId,
+                           do_scheduled_at as doScheduledAt,
+                           created_at as createdAt`
 
   const inserted = await db
     .prepare(query)
@@ -70,9 +77,9 @@ export const insert = async (
       values.doScheduledAt,
       values.createdAt
     )
-    .first<{ id: number }>()
+    .first<ReserveRow>()
 
-  return inserted?.id ?? null
+  return inserted ?? null
 }
 
 export const remove = async (db: D1Database, id: number): Promise<number> => {
