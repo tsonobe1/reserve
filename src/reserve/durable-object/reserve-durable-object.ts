@@ -17,6 +17,11 @@ export class ReserveDurableObject extends DurableObject {
     return { params: params ?? null, alarmAt }
   }
 
+  async rollback(): Promise<void> {
+    await this.ctx.storage.deleteAlarm()
+    await this.ctx.storage.deleteAll()
+  }
+
   async alarm(): Promise<void> {
     const params = await this.ctx.storage.get('params')
     console.log('Reserve DO alarm fired', { id: this.ctx.id.toString(), params })

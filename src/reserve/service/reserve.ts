@@ -39,9 +39,17 @@ export const createReserve = async (
 ): Promise<ReserveRecord> => {
   const doValues = await scheduleReserveDurableObject(reserveDo, payload)
   const values = buildInsertValues(payload, doValues)
-  const inserted = await insert(db, values)
+  let inserted: Awaited<ReturnType<typeof insert>> | null = null
+
+  try {
+    inserted = await insert(db, values)
+  } catch (error) {
+    await rollbackReserveDurableObject(reserveDo, doValues.doId)
+    throw error
+  }
 
   if (!inserted) {
+    await rollbackReserveDurableObject(reserveDo, doValues.doId)
     throw new Error('Failed to insert reserve record')
   }
 
@@ -93,4 +101,12 @@ const scheduleReserveDurableObject = async (
     doNamespace: 'RESERVE_DO',
     doId: doObjectId.toString(),
   }
+}
+
+const rollbackReserveDurableObject = async (
+  reserveDo: DurableObjectNamespace<ReserveDurableObject>,
+  doId: string
+): Promise<void> => {
+  const stub = reserveDo.get(reserveDo.idFromString(doId))
+  await stub.rollback()
 }
