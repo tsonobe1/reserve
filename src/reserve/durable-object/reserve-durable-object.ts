@@ -1,5 +1,10 @@
 import { DurableObject } from 'cloudflare:workers'
 
+// Storage キー:
+// - params: POST ペイロードの params
+// Alarm:
+// - alarmAt: Durable Object のアラームスケジューラで管理される時刻 (setAlarm/getAlarm)
+
 export class ReserveDurableObject extends DurableObject {
   async schedule(params: unknown, executeAt: string): Promise<void> {
     const scheduledAt = Date.parse(executeAt)
