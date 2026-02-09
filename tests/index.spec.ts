@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { SELF, env } from 'cloudflare:test'
 import schemaSql from '../schema.sql?raw'
-import type { ReserveDurableObject } from '../src'
 import type { ReserveRecord } from '../src/reserve/domain/reserve'
 
 const schemaStatements = schemaSql
@@ -75,19 +74,36 @@ describe('Reserve API', () => {
     })
   })
 
-  describe('GET /reserves/:id', () => {
-    it('予約詳細が取得できる', async () => {
+  describe('GET /reserves/do/:doId', () => {
+    it('DO から予約詳細(アラーム情報)を取得できる', async () => {
+      const requestPayload = {
+        params: { name: 'Get Detail Guest', contact: 'detail@example.com' },
+        executeAt: '2026-03-02T10:00:00.000Z',
+      }
+
+      const createdResponse = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload),
+        })
+      )
+      expect(createdResponse.status).toBe(201)
+
+      const created = (await createdResponse.json()) as { doId: string }
+
       const response = await SELF.fetch(
-        new Request(`http://localhost:8787/reserves/${seededReserveId}`)
+        new Request(`http://localhost:8787/reserves/do/${created.doId}`)
       )
       expect(response.status).toBe(200)
 
       const payload = (await response.json()) as {
-        reserve: ReserveRecord & { params: unknown }
+        reserve: { doId: string; params: unknown; alarmAt: number | null }
       }
 
-      expect(payload.reserve.id).toBe(seededReserveId)
-      expect(payload.reserve.params).toStrictEqual(SEEDED_PARAMS)
+      expect(payload.reserve.doId).toBe(created.doId)
+      expect(payload.reserve.params).toStrictEqual(requestPayload.params)
+      expect(payload.reserve.alarmAt).not.toBeNull()
     })
   })
 
@@ -122,10 +138,7 @@ describe('Reserve API', () => {
       expect(payload.executeAt).toBe(requestPayload.executeAt)
       expect(payload.status).toBe('pending')
 
-      const testEnv = env as unknown as {
-        RESERVE_DO: DurableObjectNamespace<ReserveDurableObject>
-      }
-      const reserveDo = testEnv.RESERVE_DO
+      const reserveDo = env.RESERVE_DO
       const stub = reserveDo.get(reserveDo.idFromString(payload.doId))
       const doState = await stub.getState()
 

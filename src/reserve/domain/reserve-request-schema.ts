@@ -6,6 +6,12 @@ export const ReserveIdParamSchema = z.object({
 
 export type ReserveIdParam = z.infer<typeof ReserveIdParamSchema>
 
+export const ReserveDoIdParamSchema = z.object({
+  doId: z.string().min(1),
+})
+
+export type ReserveDoIdParam = z.infer<typeof ReserveDoIdParamSchema>
+
 export const ReserveCreatePayloadSchema = z.object({
   params: z.record(z.string(), z.unknown()),
   executeAt: z.string(),

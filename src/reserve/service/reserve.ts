@@ -1,7 +1,7 @@
-import type { ReserveRecord } from '../domain/reserve'
+import type { ReserveAlarmRecord, ReserveRecord } from '../domain/reserve'
 import type { ReserveCreatePayload } from '../domain/reserve-request-schema'
 import type { ReserveDurableObject } from '../durable-object/reserve-durable-object'
-import { get, getAll, insert, remove, type InsertReserveValues } from '../repository/reserve'
+import { getAll, insert, remove, type InsertReserveValues } from '../repository/reserve'
 
 export const getReserves = async (db: D1Database): Promise<ReserveRecord[]> => {
   const records = await getAll(db)
@@ -15,17 +15,20 @@ export const getReserves = async (db: D1Database): Promise<ReserveRecord[]> => {
   })
 }
 
-export const getReserve = async (db: D1Database, id: number): Promise<ReserveRecord | null> => {
-  const record = await get(db, id)
-
-  if (!record) {
-    return null
+export const getReserve = async (
+  reserveDo: DurableObjectNamespace<ReserveDurableObject>,
+  doId: string
+): Promise<ReserveAlarmRecord> => {
+  const stub = reserveDo.get(reserveDo.idFromString(doId))
+  const state = (await stub.getState()) as {
+    params: unknown
+    alarmAt: number | null
   }
 
-  try {
-    return { ...record, params: JSON.parse(record.params) }
-  } catch {
-    return { ...record, params: record.params }
+  return {
+    doId,
+    params: state.params,
+    alarmAt: state.alarmAt,
   }
 }
 

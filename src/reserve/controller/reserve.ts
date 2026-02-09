@@ -1,30 +1,28 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { ReserveCreatePayloadSchema, ReserveIdParamSchema } from '../domain/reserve-request-schema'
-import type { ReserveDurableObject } from '../durable-object/reserve-durable-object'
+import {
+  ReserveCreatePayloadSchema,
+  ReserveDoIdParamSchema,
+  ReserveIdParamSchema,
+} from '../domain/reserve-request-schema'
 import { createReserve, deleteReserve, getReserve, getReserves } from '../service/reserve'
 
-type Bindings = {
-  reserve: D1Database
-  RESERVE_DO: DurableObjectNamespace<ReserveDurableObject>
-}
-
-const reserves = new Hono<{ Bindings: Bindings }>()
+const reserves = new Hono<{ Bindings: CloudflareBindings }>()
 // GET all reserves
 reserves.get('/', async (c) => {
   const reserves = await getReserves(c.env.reserve)
   return c.json({ reserves })
 })
 
-// GET single reserve
+// GET reserve alarm detail
 reserves.get(
-  '/:id',
-  zValidator('param', ReserveIdParamSchema, (result, c) => {
+  '/do/:doId',
+  zValidator('param', ReserveDoIdParamSchema, (result, c) => {
     if (!result.success) {
       return c.json(
         {
-          error: 'Invalid reserve id',
+          error: 'Invalid reserve doId',
           details: z.flattenError(result.error),
         },
         400
@@ -32,13 +30,8 @@ reserves.get(
     }
   }),
   async (c) => {
-    const { id } = c.req.valid('param')
-
-    const reserve = await getReserve(c.env.reserve, id)
-
-    if (!reserve) {
-      return c.json({ error: 'Reserve not found' }, 404)
-    }
+    const { doId } = c.req.valid('param')
+    const reserve = await getReserve(c.env.RESERVE_DO, doId)
 
     return c.json({ reserve })
   }

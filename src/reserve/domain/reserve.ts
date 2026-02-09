@@ -8,3 +8,9 @@ export type ReserveRecord = {
   doScheduledAt: string
   createdAt: string
 }
+
+export type ReserveAlarmRecord = {
+  doId: string
+  params: unknown
+  alarmAt: number | null
+}
