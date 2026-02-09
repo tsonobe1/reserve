@@ -10,6 +10,13 @@ const schemaStatements = schemaSql
 
 const SEEDED_TIMESTAMP = '2026-02-07T00:00:00.000Z'
 const SEEDED_PARAMS = { name: 'Test Guest', contact: 'guest@example.com' }
+const AUTH_TOKEN = 'test-token'
+
+const withAuth = (init: RequestInit = {}): RequestInit => {
+  const headers = new Headers(init.headers)
+  headers.set('Authorization', `Bearer ${AUTH_TOKEN}`)
+  return { ...init, headers }
+}
 
 const applySchema = async () => {
   for (const statement of schemaStatements) {
@@ -61,9 +68,16 @@ describe('Reserve API', () => {
     seededReserveId = await seed()
   })
 
+  describe('Authentication', () => {
+    it('認証ヘッダがない場合は 401 を返す', async () => {
+      const response = await SELF.fetch(new Request('http://localhost:8787/reserves'))
+      expect(response.status).toBe(401)
+    })
+  })
+
   describe('GET /reserves', () => {
     it('予約一覧が取得できる', async () => {
-      const response = await SELF.fetch(new Request('http://localhost:8787/reserves'))
+      const response = await SELF.fetch(new Request('http://localhost:8787/reserves', withAuth()))
       expect(response.status).toBe(200)
 
       const payload = (await response.json()) as {
@@ -83,9 +97,11 @@ describe('Reserve API', () => {
 
       const createdResponse = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestPayload),
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload),
+          }),
         })
       )
       expect(createdResponse.status).toBe(201)
@@ -93,7 +109,7 @@ describe('Reserve API', () => {
       const created = (await createdResponse.json()) as { doId: string }
 
       const response = await SELF.fetch(
-        new Request(`http://localhost:8787/reserves/do/${created.doId}`)
+        new Request(`http://localhost:8787/reserves/do/${created.doId}`, withAuth())
       )
       expect(response.status).toBe(200)
 
@@ -117,9 +133,11 @@ describe('Reserve API', () => {
 
       const response = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestPayload),
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload),
+          }),
         })
       )
 
@@ -149,10 +167,12 @@ describe('Reserve API', () => {
     it('params がオブジェクトでない場合は 400 を返す', async () => {
       const response = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            params: 'not-an-object',
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              params: 'not-an-object',
+            }),
           }),
         })
       )
@@ -163,12 +183,14 @@ describe('Reserve API', () => {
     it('status を指定しても pending で作成される', async () => {
       const response = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            params: { name: 'Force Pending' },
-            executeAt: '2026-03-01T11:00:00.000Z',
-            status: 'done',
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              params: { name: 'Force Pending' },
+              executeAt: '2026-03-01T11:00:00.000Z',
+              status: 'done',
+            }),
           }),
         })
       )
@@ -185,10 +207,12 @@ describe('Reserve API', () => {
     it('executeAt が未指定の場合は 400 を返す', async () => {
       const response = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            params: { name: 'Missing Execute At' },
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              params: { name: 'Missing Execute At' },
+            }),
           }),
         })
       )
@@ -201,11 +225,13 @@ describe('Reserve API', () => {
     it('予約を削除すると DO の設定も削除される', async () => {
       const createResponse = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            params: { name: 'Delete Target' },
-            executeAt: '2026-03-03T10:00:00.000Z',
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              params: { name: 'Delete Target' },
+              executeAt: '2026-03-03T10:00:00.000Z',
+            }),
           }),
         })
       )
@@ -218,7 +244,7 @@ describe('Reserve API', () => {
 
       const response = await SELF.fetch(
         new Request(`http://localhost:8787/reserves/${created.id}`, {
-          method: 'DELETE',
+          ...withAuth({ method: 'DELETE' }),
         })
       )
 
@@ -241,7 +267,7 @@ describe('Reserve API', () => {
     it('存在しない予約の削除は 404 を返す', async () => {
       const response = await SELF.fetch(
         new Request('http://localhost:8787/reserves/999999', {
-          method: 'DELETE',
+          ...withAuth({ method: 'DELETE' }),
         })
       )
 

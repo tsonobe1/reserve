@@ -27,6 +27,39 @@ pnpm dev -- --local
 pnpm dev -- --env test --local
 ```
 
+## Authentication
+
+すべての API は `Authorization: Bearer <token>` が必要です。
+`AUTH_TOKEN` は `wrangler.toml` に直書きせず、Secret として管理します。
+
+```txt
+# local/dev (wrangler dev)
+cp .dev.vars.example .dev.vars
+# 例: AUTH_TOKEN=your-local-token
+
+# local/test env (wrangler dev --env test) を使う場合
+cp .dev.vars.test.example .dev.vars.test
+
+# production env
+wrangler secret put AUTH_TOKEN --env production
+```
+
+### Local usage
+
+```txt
+cp .dev.vars.example .dev.vars
+# .dev.vars を編集して AUTH_TOKEN を設定
+```
+
+`wrangler dev` を再起動後、`Authorization: Bearer <AUTH_TOKEN>` を付与して呼び出します。
+
+```txt
+curl -i http://localhost:8787/reserves \
+  -H "Authorization: Bearer <AUTH_TOKEN>"
+```
+
+Postman の場合は `Authorization` タブで `Bearer Token` を選び、`<AUTH_TOKEN>` を入力します。
+
 ## Deploy
 
 ```txt

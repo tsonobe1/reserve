@@ -1,9 +1,17 @@
 import { Hono } from 'hono'
+import { bearerAuth } from 'hono/bearer-auth'
 import { HTTPException } from 'hono/http-exception'
 import reserves from './reserve/controller/reserve'
 import { ReserveDurableObject } from './reserve/durable-object/reserve-durable-object'
 
 const app = new Hono()
+
+app.use(
+  '*',
+  bearerAuth({
+    verifyToken: async (token, c) => token === c.env.AUTH_TOKEN,
+  })
+)
 
 // 想定外の例外はここで一元処理し、ルート側は想定内の 4xx 応答に集中する
 app.onError((err, c) => {
