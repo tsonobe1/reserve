@@ -219,6 +219,23 @@ describe('Reserve API', () => {
 
       expect(response.status).toBe(400)
     })
+
+    it('executeAt が過去日時の場合は 400 を返す', async () => {
+      const response = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              params: { name: 'Past Execute At' },
+              executeAt: '2020-01-01T00:00:00.000Z',
+            }),
+          }),
+        })
+      )
+
+      expect(response.status).toBe(400)
+    })
   })
 
   describe('DELETE /reserves/:id', () => {

@@ -22,7 +22,7 @@ reserves.get(
     if (!result.success) {
       return c.json(
         {
-          error: 'Invalid reserve doId',
+          error: '予約 doId が不正です',
           details: z.flattenError(result.error),
         },
         400
@@ -44,7 +44,7 @@ reserves.post(
     if (!result.success) {
       return c.json(
         {
-          error: 'Invalid reserve payload',
+          error: '予約ペイロードが不正です',
           details: z.flattenError(result.error),
         },
         400
@@ -65,7 +65,7 @@ reserves.delete(
     if (!result.success) {
       return c.json(
         {
-          error: 'Invalid reserve id',
+          error: '予約 id が不正です',
           details: z.flattenError(result.error),
         },
         400
@@ -77,7 +77,7 @@ reserves.delete(
 
     const deleted = await deleteReserve(c.env.reserve, c.env.RESERVE_DO, id)
     if (!deleted) {
-      return c.json({ error: 'Reserve not found' }, 404)
+      return c.json({ error: '予約が見つかりません' }, 404)
     }
 
     return c.json({ message: `Reserve ${id} deleted` })

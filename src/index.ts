@@ -10,6 +10,15 @@ app.use(
   '*',
   bearerAuth({
     verifyToken: async (token, c) => token === c.env.AUTH_TOKEN,
+    noAuthenticationHeader: {
+      message: '認証情報がありません',
+    },
+    invalidAuthenticationHeader: {
+      message: '認証ヘッダーの形式が不正です',
+    },
+    invalidToken: {
+      message: '認証トークンが不正です',
+    },
   })
 )
 
@@ -20,7 +29,7 @@ app.onError((err, c) => {
   }
 
   console.error(err)
-  return c.json({ error: 'Internal Server Error' }, 500)
+  return c.json({ error: 'サーバー内部でエラーが発生しました' }, 500)
 })
 
 app.route('/reserves', reserves)

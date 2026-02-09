@@ -56,7 +56,7 @@ describe('createReserve rollback', () => {
     const { reserveDo, stub } = createReserveDoMock()
 
     await expect(createReserve(db, reserveDo, payload)).rejects.toThrow(
-      'Failed to insert reserve record'
+      '予約レコードの登録に失敗しました'
     )
 
     expect(stub.schedule).toHaveBeenCalledTimes(1)

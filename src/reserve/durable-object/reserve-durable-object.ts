@@ -9,7 +9,7 @@ export class ReserveDurableObject extends DurableObject {
   async schedule(params: unknown, executeAt: string): Promise<void> {
     const scheduledAt = Date.parse(executeAt)
     if (Number.isNaN(scheduledAt)) {
-      throw new Error('executeAt must be a valid datetime string')
+      throw new Error('executeAt は有効な日時文字列である必要があります')
     }
 
     await this.ctx.storage.put('params', params ?? null)

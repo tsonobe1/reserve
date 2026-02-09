@@ -50,7 +50,7 @@ export const createReserve = async (
 
   if (!inserted) {
     await rollbackReserveDurableObject(reserveDo, doValues.doId)
-    throw new Error('Failed to insert reserve record')
+    throw new Error('予約レコードの登録に失敗しました')
   }
 
   try {
