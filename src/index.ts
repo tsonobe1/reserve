@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import reserves from './reserve/controller/reserve'
+import { ReserveDurableObject } from './reserve/durable-object/reserve-durable-object'
 
 const app = new Hono()
 
@@ -17,3 +18,4 @@ app.onError((err, c) => {
 app.route('/reserves', reserves)
 
 export default app
+export { ReserveDurableObject }

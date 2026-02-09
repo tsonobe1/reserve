@@ -1,5 +1,6 @@
 import type { ReserveRecord } from '../domain/reserve'
 import type { ReserveCreatePayload } from '../domain/reserve-request-schema'
+import type { ReserveDurableObject } from '../durable-object/reserve-durable-object'
 import { get, getAll, insert, remove, type InsertReserveValues } from '../repository/reserve'
 
 export const getReserves = async (db: D1Database): Promise<ReserveRecord[]> => {
@@ -30,9 +31,11 @@ export const getReserve = async (db: D1Database, id: number): Promise<ReserveRec
 
 export const createReserve = async (
   db: D1Database,
+  reserveDo: DurableObjectNamespace<ReserveDurableObject>,
   payload: ReserveCreatePayload
 ): Promise<ReserveRecord> => {
-  const values = buildInsertValues(payload)
+  const doValues = await scheduleReserveDurableObject(reserveDo, payload)
+  const values = buildInsertValues(payload, doValues)
   const inserted = await insert(db, values)
 
   if (!inserted) {
@@ -51,13 +54,16 @@ export const deleteReserve = async (db: D1Database, id: number): Promise<boolean
   return changes === 1
 }
 
-const buildInsertValues = (payload: ReserveCreatePayload): InsertReserveValues => {
+const buildInsertValues = (
+  payload: ReserveCreatePayload,
+  doValues: { doNamespace: string; doId: string }
+): InsertReserveValues => {
   const paramsJson = JSON.stringify(payload.params)
 
   const executeAt = payload.executeAt
   const status = 'pending'
-  const doNamespace = 'reserve'
-  const doId = crypto.randomUUID()
+  const doNamespace = doValues.doNamespace
+  const doId = doValues.doId
   const createdAt = new Date().toISOString()
 
   return {
@@ -68,5 +74,20 @@ const buildInsertValues = (payload: ReserveCreatePayload): InsertReserveValues =
     doId,
     doScheduledAt: executeAt,
     createdAt,
+  }
+}
+
+const scheduleReserveDurableObject = async (
+  reserveDo: DurableObjectNamespace<ReserveDurableObject>,
+  payload: ReserveCreatePayload
+): Promise<{ doNamespace: string; doId: string }> => {
+  const objectName = `reserve:${crypto.randomUUID()}`
+  const doObjectId = reserveDo.idFromName(objectName)
+  const stub = reserveDo.get(doObjectId)
+  await stub.schedule(payload.params, payload.executeAt)
+
+  return {
+    doNamespace: 'RESERVE_DO',
+    doId: doObjectId.toString(),
   }
 }

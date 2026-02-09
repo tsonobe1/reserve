@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { SELF, env } from 'cloudflare:test'
 import schemaSql from '../schema.sql?raw'
+import type { ReserveDurableObject } from '../src'
 import type { ReserveRecord } from '../src/reserve/domain/reserve'
 
 const schemaStatements = schemaSql
@@ -113,12 +114,23 @@ describe('Reserve API', () => {
         params: unknown
         executeAt: string
         status: string
+        doId: string
       }
 
       expect(payload.id).toBeTruthy()
       expect(payload.params).toStrictEqual(requestPayload.params)
       expect(payload.executeAt).toBe(requestPayload.executeAt)
       expect(payload.status).toBe('pending')
+
+      const testEnv = env as unknown as {
+        RESERVE_DO: DurableObjectNamespace<ReserveDurableObject>
+      }
+      const reserveDo = testEnv.RESERVE_DO
+      const stub = reserveDo.get(reserveDo.idFromString(payload.doId))
+      const doState = await stub.getState()
+
+      expect(doState.params).toStrictEqual(requestPayload.params)
+      expect(doState.alarmAt).not.toBeNull()
     })
 
     it('params がオブジェクトでない場合は 400 を返す', async () => {

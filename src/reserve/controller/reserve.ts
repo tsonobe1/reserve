@@ -2,10 +2,12 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { ReserveCreatePayloadSchema, ReserveIdParamSchema } from '../domain/reserve-request-schema'
+import type { ReserveDurableObject } from '../durable-object/reserve-durable-object'
 import { createReserve, deleteReserve, getReserve, getReserves } from '../service/reserve'
 
 type Bindings = {
   reserve: D1Database
+  RESERVE_DO: DurableObjectNamespace<ReserveDurableObject>
 }
 
 const reserves = new Hono<{ Bindings: Bindings }>()
@@ -58,7 +60,7 @@ reserves.post(
   }),
   async (c) => {
     const payload = c.req.valid('json')
-    const reserve = await createReserve(c.env.reserve, payload)
+    const reserve = await createReserve(c.env.reserve, c.env.RESERVE_DO, payload)
     return c.json(reserve, 201)
   }
 )

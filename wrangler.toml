@@ -2,17 +2,32 @@ name = "reserve"
 main = "src/index.ts"
 compatibility_date = "2026-02-05"
 
+# 開発環境
 [[d1_databases]]
 binding = "reserve"
 database_name = "reserve-dev"
 database_id = "4b339fc4-ebc8-4cdb-a013-1c58fa47102b"
 
+[[durable_objects.bindings]]
+name = "RESERVE_DO"
+class_name = "ReserveDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ReserveDurableObject"]
+
+# テスト環境
 [env.test]
 [[env.test.d1_databases]]
 binding = "reserve"
 database_name = "reserve-test"
 database_id = "4c854735-0f33-4249-9e23-f681d78d32c3"
 
+[[env.test.durable_objects.bindings]]
+name = "RESERVE_DO"
+class_name = "ReserveDurableObject"
+
+# 本番環境
 [env.production]
 [[env.production.d1_databases]]
 binding = "reserve"
