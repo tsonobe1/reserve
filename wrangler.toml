@@ -16,16 +16,8 @@ class_name = "ReserveDurableObject"
 tag = "v1"
 new_sqlite_classes = ["ReserveDurableObject"]
 
-# テスト環境
-[env.test]
-[[env.test.d1_databases]]
-binding = "reserve"
-database_name = "reserve-test"
-database_id = "4c854735-0f33-4249-9e23-f681d78d32c3"
-
-[[env.test.durable_objects.bindings]]
-name = "RESERVE_DO"
-class_name = "ReserveDurableObject"
+# NOTE: Vitest 実行時の D1/DO 分離は wrangler の env ではなく
+# @cloudflare/vitest-pool-workers の isolated storage により行われる。
 
 # 本番環境
 [env.production]
