@@ -198,9 +198,26 @@ describe('Reserve API', () => {
   })
 
   describe('DELETE /reserves/:id', () => {
-    it('予約を削除できる', async () => {
+    it('予約を削除すると DO の設定も削除される', async () => {
+      const createResponse = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            params: { name: 'Delete Target' },
+            executeAt: '2026-03-03T10:00:00.000Z',
+          }),
+        })
+      )
+      expect(createResponse.status).toBe(201)
+
+      const created = (await createResponse.json()) as {
+        id: number
+        doId: string
+      }
+
       const response = await SELF.fetch(
-        new Request(`http://localhost:8787/reserves/${seededReserveId}`, {
+        new Request(`http://localhost:8787/reserves/${created.id}`, {
           method: 'DELETE',
         })
       )
@@ -211,7 +228,14 @@ describe('Reserve API', () => {
         message: string
       }
 
-      expect(payload.message).toBe(`Reserve ${seededReserveId} deleted`)
+      expect(payload.message).toBe(`Reserve ${created.id} deleted`)
+
+      const reserveDo = env.RESERVE_DO
+      const stub = reserveDo.get(reserveDo.idFromString(created.doId))
+      const doState = await stub.getState()
+
+      expect(doState.params).toBeNull()
+      expect(doState.alarmAt).toBeNull()
     })
 
     it('存在しない予約の削除は 404 を返す', async () => {

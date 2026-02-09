@@ -28,7 +28,6 @@ export const getAll = async (db: D1Database): Promise<ReserveRow[]> => {
 }
 
 export const get = async (db: D1Database, id: number): Promise<ReserveRow | null> => {
-  // TODO: Durable Object から取得する必要がある
   const query = `select id,
                         params as params,
                         execute_at as executeAt,

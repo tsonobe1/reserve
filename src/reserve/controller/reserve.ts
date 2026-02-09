@@ -75,7 +75,7 @@ reserves.delete(
   async (c) => {
     const { id } = c.req.valid('param')
 
-    const deleted = await deleteReserve(c.env.reserve, id)
+    const deleted = await deleteReserve(c.env.reserve, c.env.RESERVE_DO, id)
     if (!deleted) {
       return c.json({ error: 'Reserve not found' }, 404)
     }
