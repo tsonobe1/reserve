@@ -73,3 +73,7 @@ pnpm run deploy             # production env, remote D1
 ```txt
 pnpm run cf-typegen
 ```
+
+## UI (Hono JSX + Tailwind)
+
+UI は Hono JSX で HTML を返し、Tailwind は CDN (`@tailwindcss/browser`) をページ内で読み込みます。
