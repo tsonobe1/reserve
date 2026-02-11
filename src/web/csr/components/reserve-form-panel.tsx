@@ -9,10 +9,13 @@ const timeOptions = Array.from({ length: 17 }, (_, i) => {
 
 export const ReserveFormPanel = () => {
   const [court, setCourt] = useState('1')
+  const [token, setToken] = useState('')
   const [reserveDate, setReserveDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [executeAt, setExecuteAt] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     if (!reserveDate) return
@@ -28,12 +31,72 @@ export const ReserveFormPanel = () => {
     }
   }, [startTime])
 
+  const handleSubmit = async (e: Event) => {
+    e.preventDefault()
+    if (!token) {
+      setMessage('Bearerトークンを入力してください。')
+      return
+    }
+    if (!reserveDate || !startTime || !endTime || !executeAt) {
+      setMessage('予約日、開始時間、終了時間、予約実行日時は必須です。')
+      return
+    }
+
+    setSubmitting(true)
+    setMessage('')
+    try {
+      const response = await fetch('/reserves', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          params: {
+            facility: '1',
+            court,
+            reserveDate,
+            startTime,
+            endTime,
+          },
+          executeAt: new Date(executeAt).toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string }
+        setMessage(body.error ?? `登録に失敗しました (${response.status})`)
+        return
+      }
+
+      setMessage('予約を登録しました。')
+    } catch {
+      setMessage('通信エラーが発生しました。')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 class="text-lg font-semibold">予約登録</h2>
       <p class="mt-1 text-sm text-slate-500">条件を入力して予約を作成します。</p>
 
-      <form id="reserveForm" class="mt-5 space-y-4">
+      <form id="reserveForm" class="mt-5 space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <label for="authToken" class="mb-1 block text-sm font-medium text-slate-700">
+            Bearerトークン
+          </label>
+          <input
+            id="authToken"
+            type="password"
+            value={token}
+            onInput={(e) => setToken((e.target as HTMLInputElement).value)}
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-slate-300 focus:ring"
+            placeholder="AUTH_TOKEN を入力"
+          />
+        </div>
+
         <div>
           <label for="facility" class="mb-1 block text-sm font-medium text-slate-700">
             対象施設
@@ -116,11 +179,13 @@ export const ReserveFormPanel = () => {
         </div>
 
         <button
-          type="button"
+          type="submit"
+          disabled={submitting}
           class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
         >
-          登録する
+          {submitting ? '登録中...' : '登録する'}
         </button>
+        {message ? <p class="text-sm text-slate-600">{message}</p> : null}
       </form>
     </section>
   )
