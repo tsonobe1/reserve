@@ -12,10 +12,8 @@ export const addHours = (hhmm: string, hours: number): string | null => {
 
 export const toExecuteAtJst = (yyyyMmDd: string): string => {
   const [year, month, day] = yyyyMmDd.split('-').map(Number)
-  const baseUtcMs = Date.UTC(year, month - 1, day, 0, 0, 0)
-  const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000
-  const targetUtcMs = baseUtcMs - sixtyDaysMs
-  const jst = new Date(targetUtcMs + 9 * 60 * 60 * 1000)
+  const target = new Date(year, month - 1, day, 0, 0, 0, 0)
+  target.setDate(target.getDate() - 60)
 
-  return `${jst.getUTCFullYear()}-${pad2(jst.getUTCMonth() + 1)}-${pad2(jst.getUTCDate())}T${pad2(jst.getUTCHours())}:${pad2(jst.getUTCMinutes())}`
+  return `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}T${pad2(target.getHours())}:${pad2(target.getMinutes())}`
 }

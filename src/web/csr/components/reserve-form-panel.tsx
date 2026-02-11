@@ -7,9 +7,13 @@ const timeOptions = Array.from({ length: 17 }, (_, i) => {
   return `${hour}:00`
 })
 
-export const ReserveFormPanel = () => {
+type ReserveFormPanelProps = {
+  token: string
+  onTokenChange: (value: string) => void
+}
+
+export const ReserveFormPanel = ({ token, onTokenChange }: ReserveFormPanelProps) => {
   const [court, setCourt] = useState('1')
-  const [token, setToken] = useState('')
   const [reserveDate, setReserveDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -91,7 +95,7 @@ export const ReserveFormPanel = () => {
             id="authToken"
             type="password"
             value={token}
-            onInput={(e) => setToken((e.target as HTMLInputElement).value)}
+            onInput={(e) => onTokenChange((e.target as HTMLInputElement).value)}
             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-slate-300 focus:ring"
             placeholder="AUTH_TOKEN を入力"
           />
