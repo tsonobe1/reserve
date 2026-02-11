@@ -133,7 +133,9 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
       setMessage('Bearerトークンを入力してください。')
       return
     }
-    if (!window.confirm(`予約 #${reserve.id} を削除しますか？`)) {
+    const targetLabel =
+      `${getFacilityAndCourt(reserve)} ${getReserveDatetimeParts(reserve)?.date ?? '-'} ${getReserveDatetimeParts(reserve)?.timeRange ?? ''}`.trim()
+    if (!window.confirm(`「${targetLabel}」を削除しますか？`)) {
       return
     }
 
@@ -154,7 +156,7 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
       }
 
       setReserves((prev) => prev.filter((item) => item.id !== reserve.id))
-      setMessage(`予約 #${reserve.id} を削除しました。`)
+      setMessage(`「${targetLabel}」を削除しました。`)
     } catch {
       setMessage('通信エラーが発生しました。')
     } finally {
