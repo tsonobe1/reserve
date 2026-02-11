@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
+import { ReserveParamsSchema } from '../domain/reserve-request-schema'
 
 // Storage キー:
 // - params: POST ペイロードの params
@@ -29,6 +30,24 @@ export class ReserveDurableObject extends DurableObject {
 
   async alarm(): Promise<void> {
     const params = await this.ctx.storage.get('params')
-    console.log('Reserve DO alarm fired', { id: this.ctx.id.toString(), params })
+    const parsed = ReserveParamsSchema.safeParse(params)
+    if (!parsed.success) {
+      console.warn('Skip reserve: params が不正です', { id: this.ctx.id.toString(), params })
+      return
+    }
+    const reserveParams = parsed.data
+
+    if (reserveParams.facilityId !== 1) {
+      console.info('Skip reserve: 非対応施設', {
+        id: this.ctx.id.toString(),
+        facilityId: reserveParams.facilityId,
+      })
+      return
+    }
+
+    console.log('予約実行対象を受け付けました（Labola/代々木）', {
+      id: this.ctx.id.toString(),
+      params: reserveParams,
+    })
   }
 }
