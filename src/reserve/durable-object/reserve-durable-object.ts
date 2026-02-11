@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import { ReserveParamsSchema } from '../domain/reserve-request-schema'
+import { prepareLabolaYoyogiLogin } from '../service/labola-yoyogi'
 
 // Storage キー:
 // - params: POST ペイロードの params
@@ -45,30 +46,10 @@ export class ReserveDurableObject extends DurableObject {
       return
     }
 
-    const username = this.env.LABOLA_YOYOGI_USERNAME
-    const password = this.env.LABOLA_YOYOGI_PASSWORD
-    if (!username || !password) {
-      throw new Error('LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です')
-    }
-
     console.log('予約実行対象を受け付けました（Labola/代々木）', {
       id: this.ctx.id.toString(),
       params: reserveParams,
     })
-    console.log('Labola認証情報を読み込みました', {
-      id: this.ctx.id.toString(),
-      usernamePreview: username.slice(0, 3),
-      hasPassword: Boolean(password),
-    })
-
-    const loginUrl = 'https://labola.jp/r/shop/3094/member/login/'
-    const loginPageResponse = await fetch(loginUrl, { method: 'GET' })
-    if (!loginPageResponse.ok) {
-      throw new Error(`ログインページ取得に失敗しました: ${loginPageResponse.status}`)
-    }
-    console.log('Labolaログインページの取得に成功しました', {
-      id: this.ctx.id.toString(),
-      status: loginPageResponse.status,
-    })
+    await prepareLabolaYoyogiLogin(this.env, this.ctx.id.toString())
   }
 }
