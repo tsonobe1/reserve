@@ -45,9 +45,20 @@ export class ReserveDurableObject extends DurableObject {
       return
     }
 
+    const username = this.env.LABOLA_YOYOGI_USERNAME
+    const password = this.env.LABOLA_YOYOGI_PASSWORD
+    if (!username || !password) {
+      throw new Error('LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です')
+    }
+
     console.log('予約実行対象を受け付けました（Labola/代々木）', {
       id: this.ctx.id.toString(),
       params: reserveParams,
+    })
+    console.log('Labola認証情報を読み込みました', {
+      id: this.ctx.id.toString(),
+      usernamePreview: username.slice(0, 3),
+      hasPassword: Boolean(password),
     })
   }
 }
