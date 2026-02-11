@@ -89,7 +89,7 @@ export const ReserveFormPanel = ({ token, onTokenChange }: ReserveFormPanelProps
       <form id="reserveForm" class="mt-5 space-y-4" onSubmit={handleSubmit}>
         <div>
           <label for="authToken" class="mb-1 block text-sm font-medium text-slate-700">
-            Bearerトークン
+            パスワード
           </label>
           <input
             id="authToken"
