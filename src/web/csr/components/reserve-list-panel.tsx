@@ -30,15 +30,18 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
   const [loading, setLoading] = useState(false)
   const [actioningId, setActioningId] = useState<number | null>(null)
   const [message, setMessage] = useState('予約データはここに表示されます')
-  const [detailsById, setDetailsById] = useState<Record<number, string>>({})
 
   const sortedReserves = [...reserves].sort((a, b) => {
     const aPending = a.status === 'pending' ? 0 : 1
     const bPending = b.status === 'pending' ? 0 : 1
     if (aPending !== bPending) return aPending - bPending
 
-    const aTime = Number.isNaN(Date.parse(a.executeAt)) ? Number.MAX_SAFE_INTEGER : Date.parse(a.executeAt)
-    const bTime = Number.isNaN(Date.parse(b.executeAt)) ? Number.MAX_SAFE_INTEGER : Date.parse(b.executeAt)
+    const aTime = Number.isNaN(Date.parse(a.executeAt))
+      ? Number.MAX_SAFE_INTEGER
+      : Date.parse(a.executeAt)
+    const bTime = Number.isNaN(Date.parse(b.executeAt))
+      ? Number.MAX_SAFE_INTEGER
+      : Date.parse(b.executeAt)
     return aTime - bTime
   })
 
@@ -79,6 +82,19 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
     return `${yyyy}/${mm}/${dd} ${hh}:${mi}`
   }
 
+  const formatAlarmAt = (value: number): string => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return String(value)
+
+    const yyyy = date.getFullYear()
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
+    const dd = String(date.getDate()).padStart(2, '0')
+    const hh = String(date.getHours()).padStart(2, '0')
+    const mi = String(date.getMinutes()).padStart(2, '0')
+    const ss = String(date.getSeconds()).padStart(2, '0')
+    return `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`
+  }
+
   const handleReload = async () => {
     if (!token) {
       setMessage('Bearerトークンを入力してください。')
@@ -102,7 +118,6 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
 
       const body = (await response.json()) as { reserves: ReserveRecord[] }
       setReserves(body.reserves)
-      setDetailsById({})
       if (body.reserves.length === 0) {
         setMessage('予約はまだありません。')
       }
@@ -139,11 +154,6 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
       }
 
       setReserves((prev) => prev.filter((item) => item.id !== reserve.id))
-      setDetailsById((prev) => {
-        const next = { ...prev }
-        delete next[reserve.id]
-        return next
-      })
       setMessage(`予約 #${reserve.id} を削除しました。`)
     } catch {
       setMessage('通信エラーが発生しました。')
@@ -176,13 +186,11 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
       const body = (await response.json()) as {
         reserve: { alarmAt: number | null }
       }
-      const alarmAtText =
-        body.reserve.alarmAt == null ? 'null' : new Date(body.reserve.alarmAt).toISOString()
-
-      setDetailsById((prev) => ({
-        ...prev,
-        [reserve.id]: `alarmAt: ${alarmAtText}`,
-      }))
+      const detailText =
+        body.reserve.alarmAt == null
+          ? '予約が設定されていません'
+          : `${formatAlarmAt(body.reserve.alarmAt)}に予約が実行される予定です。`
+      window.alert(detailText)
     } catch {
       setMessage('通信エラーが発生しました。')
     } finally {
@@ -214,7 +222,9 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
           <table class="min-w-full border-collapse text-sm">
             <thead class="bg-slate-50 text-slate-700">
               <tr>
-                <th class="border-b border-slate-200 px-3 py-2 text-left font-medium">施設/コード</th>
+                <th class="border-b border-slate-200 px-3 py-2 text-left font-medium">
+                  施設/コード
+                </th>
                 <th class="border-b border-slate-200 px-3 py-2 text-left font-medium">予約日時</th>
                 <th class="border-b border-slate-200 px-3 py-2 text-left font-medium">
                   予約実行日時
@@ -226,7 +236,9 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
             <tbody>
               {sortedReserves.map((reserve) => (
                 <tr key={reserve.id} class="align-top odd:bg-white even:bg-slate-50/50">
-                  <td class="border-b border-slate-200 px-3 py-2">{getFacilityAndCourt(reserve)}</td>
+                  <td class="border-b border-slate-200 px-3 py-2">
+                    {getFacilityAndCourt(reserve)}
+                  </td>
                   <td class="border-b border-slate-200 px-3 py-2">
                     {getReserveDatetimeParts(reserve) ? (
                       <>
@@ -260,9 +272,6 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
                         確認
                       </button>
                     </div>
-                    {detailsById[reserve.id] ? (
-                      <p class="mt-2 text-xs text-slate-500">{detailsById[reserve.id]}</p>
-                    ) : null}
                   </td>
                 </tr>
               ))}
