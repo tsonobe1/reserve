@@ -1,5 +1,6 @@
 # prod
 dist/
+public/client.js
 
 # dev
 .yarn/

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { bearerAuth } from 'hono/bearer-auth'
 import { HTTPException } from 'hono/http-exception'
-import page from './ui/controller/page'
+import page from './web/controller/page'
 import reserves from './reserve/controller/reserve'
 import { ReserveDurableObject } from './reserve/durable-object/reserve-durable-object'
 

@@ -1,6 +1,7 @@
 name = "reserve"
 main = "src/index.ts"
 compatibility_date = "2026-02-05"
+assets = { directory = "./public" }
 
 # 開発環境
 [[d1_databases]]
