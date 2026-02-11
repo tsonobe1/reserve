@@ -124,6 +124,50 @@ describe('Reserve API', () => {
   })
 
   describe('POST /reserves', () => {
+    it('UI 由来の payload で予約を作成できる', async () => {
+      const executeAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      const requestPayload = {
+        params: {
+          facility: '1',
+          court: '2',
+          reserveDate: '2026-04-20',
+          startTime: '09:00',
+          endTime: '11:00',
+        },
+        executeAt,
+      }
+
+      const response = await SELF.fetch(
+        new Request('http://localhost:8787/reserves', {
+          ...withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload),
+          }),
+        })
+      )
+
+      expect(response.status).toBe(201)
+
+      const payload = (await response.json()) as {
+        id: number
+        params: unknown
+        executeAt: string
+        doId: string
+      }
+
+      expect(payload.id).toBeTruthy()
+      expect(payload.params).toStrictEqual(requestPayload.params)
+      expect(payload.executeAt).toBe(executeAt)
+
+      const reserveDo = env.RESERVE_DO
+      const stub = reserveDo.get(reserveDo.idFromString(payload.doId))
+      const doState = await stub.getState()
+
+      expect(doState.params).toStrictEqual(requestPayload.params)
+      expect(doState.alarmAt).not.toBeNull()
+    })
+
     it('予約を作成できる', async () => {
       const requestPayload = {
         params: { name: 'New Guest', contact: 'new@example.com' },
