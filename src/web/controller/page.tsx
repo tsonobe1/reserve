@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { Layout } from '../components/layout'
+import { Layout } from '../ssr/layout'
 
 const page = new Hono()
 

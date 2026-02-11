@@ -1,65 +1,13 @@
-import { render, useEffect, useState } from 'hono/jsx/dom'
+import { useEffect, useState } from 'hono/jsx/dom'
+import { addHours, toExecuteAtJst } from '../lib/date-time'
+import { CourtSelector } from './court-selector'
 
 const timeOptions = Array.from({ length: 17 }, (_, i) => {
   const hour = String(i + 7).padStart(2, '0')
   return `${hour}:00`
 })
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
-
-const addHours = (hhmm: string, hours: number): string | null => {
-  const [h, m] = hhmm.split(':').map(Number)
-  if (!Number.isInteger(h) || !Number.isInteger(m)) return null
-
-  const total = h + hours
-  if (total > 23) return null
-
-  return `${pad2(total)}:${pad2(m)}`
-}
-
-const toExecuteAtJst = (yyyyMmDd: string): string => {
-  const [year, month, day] = yyyyMmDd.split('-').map(Number)
-  const baseUtcMs = Date.UTC(year, month - 1, day, 0, 0, 0)
-  const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000
-  const targetUtcMs = baseUtcMs - sixtyDaysMs
-  const jst = new Date(targetUtcMs + 9 * 60 * 60 * 1000)
-
-  return `${jst.getUTCFullYear()}-${pad2(jst.getUTCMonth() + 1)}-${pad2(jst.getUTCDate())}T${pad2(jst.getUTCHours())}:${pad2(jst.getUTCMinutes())}`
-}
-
-type CourtSelectorProps = {
-  value: string
-  onSelect: (value: string) => void
-}
-
-const CourtSelector = ({ value, onSelect }: CourtSelectorProps) => {
-  return (
-    <div>
-      <p class="mb-2 block text-sm font-medium text-slate-700">コート</p>
-      <div class="grid grid-cols-2 gap-2">
-        {['1', '2', '3', '4'].map((court) => {
-          const isActive = value === court
-          return (
-            <button
-              type="button"
-              onClick={() => onSelect(court)}
-              aria-pressed={isActive}
-              class={`rounded-lg border px-3 py-2 text-sm transition ${
-                isActive
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              第{court}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-const ReserveFormPanel = () => {
+export const ReserveFormPanel = () => {
   const [court, setCourt] = useState('1')
   const [reserveDate, setReserveDate] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -176,43 +124,4 @@ const ReserveFormPanel = () => {
       </form>
     </section>
   )
-}
-
-const ReserveListPanel = () => {
-  return (
-    <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold">予約一覧</h2>
-        <button
-          type="button"
-          class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-        >
-          再読み込み
-        </button>
-      </div>
-      <p class="mt-1 text-sm text-slate-500">作成済みの予約を表示します。</p>
-
-      <div class="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-        予約データはここに表示されます
-      </div>
-    </section>
-  )
-}
-
-const ReservePage = () => {
-  return (
-    <main class="mx-auto max-w-6xl px-6 py-10">
-      <h1 class="text-3xl font-bold tracking-tight">Reserve</h1>
-
-      <div class="mt-8 grid gap-6 md:grid-cols-[minmax(320px,420px)_1fr]">
-        <ReserveFormPanel />
-        <ReserveListPanel />
-      </div>
-    </main>
-  )
-}
-
-const mount = document.getElementById('app')
-if (mount) {
-  render(<ReservePage />, mount)
 }

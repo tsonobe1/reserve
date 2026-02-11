@@ -11,7 +11,7 @@ export default defineConfig({
     emptyOutDir: false,
     sourcemap: false,
     rollupOptions: {
-      input: 'src/web/client/ui.tsx',
+      input: 'src/web/csr/main.tsx',
       output: {
         entryFileNames: 'client.js',
       },
