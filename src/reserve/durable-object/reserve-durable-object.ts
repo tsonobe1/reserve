@@ -60,5 +60,15 @@ export class ReserveDurableObject extends DurableObject {
       usernamePreview: username.slice(0, 3),
       hasPassword: Boolean(password),
     })
+
+    const loginUrl = 'https://labola.jp/r/shop/3094/member/login/'
+    const loginPageResponse = await fetch(loginUrl, { method: 'GET' })
+    if (!loginPageResponse.ok) {
+      throw new Error(`ログインページ取得に失敗しました: ${loginPageResponse.status}`)
+    }
+    console.log('Labolaログインページの取得に成功しました', {
+      id: this.ctx.id.toString(),
+      status: loginPageResponse.status,
+    })
   }
 }
