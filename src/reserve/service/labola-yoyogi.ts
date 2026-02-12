@@ -288,11 +288,16 @@ export const submitLabolaYoyogiCustomerForms = async (
   }
   headers.Cookie = cookieHeader
 
-  const customerInfoResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_INFO_URL, {
-    method: 'POST',
-    headers,
-    body: customerInfoForm.toString(),
-  })
+  let customerInfoResponse: Response
+  try {
+    customerInfoResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_INFO_URL, {
+      method: 'POST',
+      headers,
+      body: customerInfoForm.toString(),
+    })
+  } catch {
+    throw new Error('customer-info 送信中に通信エラーが発生しました')
+  }
   ensureLabolaYoyogiPostSuccess(customerInfoResponse, 'customer-info')
   const customerConfirmDefaults = extractLabolaYoyogiFormValues(await customerInfoResponse.text())
   const mergedCustomerConfirmForm = mergeLabolaYoyogiFormValues(
