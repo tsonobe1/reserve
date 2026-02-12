@@ -256,12 +256,14 @@ export const submitLabolaYoyogiCustomerForms = async (
   customerConfirmForm: URLSearchParams,
   cookieHeader?: string
 ): Promise<void> => {
+  if (!cookieHeader) {
+    throw new Error('customer-info/customer-confirm 送信に必要なCookieがありません')
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',
   }
-  if (cookieHeader) {
-    headers.Cookie = cookieHeader
-  }
+  headers.Cookie = cookieHeader
 
   await fetch(LABOLA_YOYOGI_CUSTOMER_INFO_URL, {
     method: 'POST',

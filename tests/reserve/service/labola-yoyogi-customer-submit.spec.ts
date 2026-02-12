@@ -63,4 +63,25 @@ describe('submitLabolaYoyogiCustomerForms', () => {
       })
     )
   })
+
+  it('Cookieヘッダが無い場合は送信せず例外を投げる', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
+      .submitLabolaYoyogiCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
+    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await expect(
+      submitCustomerForms?.(RESERVE_ID, customerInfoForm, customerConfirmForm, undefined)
+    ).rejects.toThrow('customer-info/customer-confirm 送信に必要なCookieがありません')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
