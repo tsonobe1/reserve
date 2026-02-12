@@ -13,6 +13,28 @@ export const buildLabolaYoyogiLoginForm = (credentials: {
   })
 }
 
+export const postLabolaYoyogiLogin = async (
+  reserveId: string,
+  form: URLSearchParams
+): Promise<Response> => {
+  const loginUrl = 'https://labola.jp/r/shop/3094/member/login/'
+  try {
+    return await fetch(loginUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: form.toString(),
+    })
+  } catch (error) {
+    console.error('LabolaログインPOST中に通信エラーが発生しました', {
+      id: reserveId,
+      error,
+    })
+    throw new Error('ログインPOST中に通信エラーが発生しました')
+  }
+}
+
 export const prepareLabolaYoyogiLogin = async (
   env: LabolaYoyogiEnv,
   reserveId: string
