@@ -308,8 +308,14 @@ export const submitLabolaYoyogiCustomerForms = async (
   ensureLabolaYoyogiPostSuccess(customerConfirmResponse, 'customer-confirm')
 }
 
+const isLabolaYoyogiCustomerPost5xxError = (message: string): boolean => {
+  return /^customer-(?:info|confirm) 送信に失敗しました: 5\d\d$/.test(message)
+}
+
 export const shouldRetryLabolaYoyogiError = (error: Error): boolean => {
   return (
-    error.message.includes('相手側サーバ障害') || error.message.includes('通信エラーが発生しました')
+    error.message.includes('相手側サーバ障害') ||
+    error.message.includes('通信エラーが発生しました') ||
+    isLabolaYoyogiCustomerPost5xxError(error.message)
   )
 }

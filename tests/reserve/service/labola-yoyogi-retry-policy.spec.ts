@@ -9,6 +9,8 @@ describe('shouldRetryLabolaYoyogiError', () => {
     expect(shouldRetry).toBeTypeOf('function')
     expect(shouldRetry?.(new Error('相手側サーバ障害のためログインできませんでした'))).toBe(true)
     expect(shouldRetry?.(new Error('ログインPOST中に通信エラーが発生しました'))).toBe(true)
+    expect(shouldRetry?.(new Error('customer-info 送信に失敗しました: 500'))).toBe(true)
+    expect(shouldRetry?.(new Error('customer-confirm 送信に失敗しました: 503'))).toBe(true)
   })
 
   it('認証失敗と4xxは再試行対象にしない', () => {
