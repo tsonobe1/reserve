@@ -290,11 +290,14 @@ export const submitLabolaYoyogiCustomerForms = async (
     customerConfirmForm
   )
 
-  await fetch(LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL, {
+  const customerConfirmResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL, {
     method: 'POST',
     headers,
     body: mergedCustomerConfirmForm.toString(),
   })
+  if (!customerConfirmResponse.ok) {
+    throw new Error(`customer-confirm 送信に失敗しました: ${customerConfirmResponse.status}`)
+  }
 }
 
 export const shouldRetryLabolaYoyogiError = (error: Error): boolean => {

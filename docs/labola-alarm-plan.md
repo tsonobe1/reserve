@@ -33,7 +33,7 @@
 
 - `customer-info` 方針
   - [x] 既定値抽出関数を実装。
-  - [ ] 実送信時に抽出結果を完全適用（hidden/select含む）。
+  - [x] 実送信時に抽出結果を完全適用（hidden/select含む）。
   - [x] 必須で空欄のみ環境変数で補完する関数を実装。
   - 補完用キー:
     - `LABOLA_YOYOGI_NAME`
@@ -44,7 +44,7 @@
     - `LABOLA_YOYOGI_MOBILE_NUMBER`
 
 - `customer-confirm` 方針
-  - [ ] 利用規約/個人情報同意を抽出ベースで厳密反映。
+  - [x] 利用規約/個人情報同意を抽出ベースで厳密反映。
   - [x] `submit_ok` で申込み実行（最小接続）。
 
 ## エラー分類と再試行
@@ -81,8 +81,9 @@
   - ログインCookieの予約URL GET への引き継ぎ
   - `customer-info -> customer-confirm` の最小POST接続
   - `customer-info/customer-confirm` 送信時のCookie必須化
+  - `customer-info` 応答HTMLから `customer-confirm` 送信用の hidden/同意値を抽出して送信
+  - `customer-confirm` 応答ステータスの失敗検知（非2xxで例外）
   - Durable Object alarm の retry state 管理（作成/増分/成功時削除）
   - 予算超過時の `setAlarm(+15秒)` 引き継ぎ
 - 未完了:
-  - `customer-info` 実ページHTMLから抽出した値での本送信組み立て
-  - `customer-confirm` の同意・hidden値を抽出ベースで厳密送信
+  - なし（非スコープ項目を除く）
