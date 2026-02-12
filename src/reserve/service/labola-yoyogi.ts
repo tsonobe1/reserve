@@ -112,3 +112,15 @@ export const prepareLabolaYoyogiLogin = async (
     loginSetCookieHeader: loginPageResponse.headers.get('set-cookie') ?? undefined,
   }
 }
+
+export const buildLabolaYoyogiBookingUrl = (
+  siteCourtNo: string,
+  date: string,
+  startTime: string,
+  endTime: string
+): string => {
+  const compactDate = date.replaceAll('-', '')
+  const compactStart = startTime.replace(':', '')
+  const compactEnd = endTime.replace(':', '')
+  return `https://labola.jp/r/booking/rental/shop/3094/facility/${siteCourtNo}/${compactDate}-${compactStart}-${compactEnd}/customer-type/`
+}
