@@ -1,5 +1,10 @@
 import type { ReserveParams } from '../domain/reserve-request-schema'
-import { prepareLabolaYoyogiLogin, type LabolaYoyogiEnv } from './labola-yoyogi'
+import {
+  buildLabolaYoyogiLoginForm,
+  postLabolaYoyogiLogin,
+  prepareLabolaYoyogiLogin,
+  type LabolaYoyogiEnv,
+} from './labola-yoyogi'
 
 const YOYOGI_UI_TO_SITE_COURT_NO_MAP: Record<number, string> = {
   1: '479',
@@ -26,7 +31,9 @@ export const reserveLabolaYoyogi = async (
     return
   }
 
-  await prepareLabolaYoyogiLogin(env, reserveId)
+  const credentials = await prepareLabolaYoyogiLogin(env, reserveId)
+  const loginForm = buildLabolaYoyogiLoginForm(credentials)
+  await postLabolaYoyogiLogin(reserveId, loginForm)
 
   console.log('Labola予約の準備が完了しました（代々木）', {
     id: reserveId,
