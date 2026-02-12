@@ -175,3 +175,39 @@ export const extractLabolaYoyogiFormValues = (html: string): Record<string, stri
 
   return values
 }
+
+type LabolaYoyogiCustomerInfoFallbackEnv = {
+  LABOLA_YOYOGI_NAME?: string
+  LABOLA_YOYOGI_DISPLAY_NAME?: string
+  LABOLA_YOYOGI_EMAIL?: string
+  LABOLA_YOYOGI_ADDRESS?: string
+  LABOLA_YOYOGI_MOBILE_NUMBER?: string
+}
+
+export const fillLabolaYoyogiCustomerInfoRequiredValues = (
+  values: Record<string, string>,
+  env: LabolaYoyogiCustomerInfoFallbackEnv
+): Record<string, string> => {
+  const filled = { ...values }
+
+  if (!filled.name) {
+    filled.name = env.LABOLA_YOYOGI_NAME ?? ''
+  }
+  if (!filled.display_name) {
+    filled.display_name = env.LABOLA_YOYOGI_DISPLAY_NAME ?? ''
+  }
+  if (!filled.email) {
+    filled.email = env.LABOLA_YOYOGI_EMAIL ?? ''
+  }
+  if (!filled.email_confirm) {
+    filled.email_confirm = env.LABOLA_YOYOGI_EMAIL ?? filled.email ?? ''
+  }
+  if (!filled.address) {
+    filled.address = env.LABOLA_YOYOGI_ADDRESS ?? ''
+  }
+  if (!filled.mobile_number) {
+    filled.mobile_number = env.LABOLA_YOYOGI_MOBILE_NUMBER ?? ''
+  }
+
+  return filled
+}
