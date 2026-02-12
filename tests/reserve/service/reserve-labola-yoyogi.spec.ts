@@ -12,6 +12,8 @@ const VALID_ENV = {
 const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
 const BOOKING_URL =
   'https://labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
+const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
+const CUSTOMER_CONFIRM_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -126,6 +128,27 @@ describe('reserveLabolaYoyogi', () => {
         headers: expect.objectContaining({
           Cookie: 'csrftoken=get-token; sessionid=get-session',
         }),
+      })
+    )
+  })
+
+  it('予約URL遷移後に customer-info/customer-confirm を送信する', async () => {
+    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
+
+    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      CUSTOMER_INFO_URL,
+      expect.objectContaining({
+        method: 'POST',
+      })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      CUSTOMER_CONFIRM_URL,
+      expect.objectContaining({
+        method: 'POST',
       })
     )
   })

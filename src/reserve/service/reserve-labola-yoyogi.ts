@@ -6,6 +6,7 @@ import {
   mergeLabolaYoyogiCookieHeader,
   postLabolaYoyogiLogin,
   prepareLabolaYoyogiLogin,
+  submitLabolaYoyogiCustomerForms,
   type LabolaYoyogiEnv,
 } from './labola-yoyogi'
 
@@ -65,6 +66,18 @@ export const reserveLabolaYoyogi = async (
   activeCookieHeader = mergeLabolaYoyogiCookieHeader(
     activeCookieHeader,
     bookingResponse.headers.get('set-cookie') ?? undefined
+  )
+  const customerInfoForm = new URLSearchParams({
+    submit_conf: '予約内容の確認',
+  })
+  const customerConfirmForm = new URLSearchParams({
+    submit_ok: '申込む',
+  })
+  await submitLabolaYoyogiCustomerForms(
+    reserveId,
+    customerInfoForm,
+    customerConfirmForm,
+    activeCookieHeader
   )
 
   console.log('Labola予約の準備が完了しました（代々木）', {
