@@ -1,5 +1,6 @@
 import type { ReserveParams } from '../domain/reserve-request-schema'
 import {
+  buildLabolaYoyogiBookingUrl,
   buildLabolaYoyogiLoginForm,
   extractLabolaYoyogiCookieHeader,
   postLabolaYoyogiLogin,
@@ -46,6 +47,15 @@ export const reserveLabolaYoyogi = async (
     ? extractLabolaYoyogiCookieHeader(credentials.loginSetCookieHeader)
     : undefined
   await postLabolaYoyogiLogin(reserveId, loginForm, loginCookieHeader)
+  const bookingUrl = buildLabolaYoyogiBookingUrl(
+    siteCourtNo,
+    params.date,
+    params.startTime,
+    params.endTime
+  )
+  await fetch(bookingUrl, {
+    method: 'GET',
+  })
 
   console.log('Labola予約の準備が完了しました（代々木）', {
     id: reserveId,

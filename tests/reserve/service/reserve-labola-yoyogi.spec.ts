@@ -10,6 +10,8 @@ const VALID_ENV = {
   LABOLA_YOYOGI_PASSWORD: 'pass',
 }
 const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
+const BOOKING_URL =
+  'https://labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -45,12 +47,12 @@ describe('reserveLabolaYoyogi', () => {
     vi.restoreAllMocks()
   })
 
-  it('対応コート番号ならログインGET/POSTを実行する', async () => {
+  it('対応コート番号ならログインGET/POST後に予約URLへ遷移する', async () => {
     const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       LOGIN_URL,
@@ -62,6 +64,13 @@ describe('reserveLabolaYoyogi', () => {
       expect.objectContaining({
         method: 'POST',
         body: 'username=user&password=pass',
+      })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      BOOKING_URL,
+      expect.objectContaining({
+        method: 'GET',
       })
     )
   })
