@@ -22,5 +22,7 @@ describe('shouldRetryLabolaYoyogiError', () => {
       false
     )
     expect(shouldRetry?.(new Error('ログインPOSTに失敗しました: 400'))).toBe(false)
+    expect(shouldRetry?.(new Error('customer-info 送信に失敗しました: 400'))).toBe(false)
+    expect(shouldRetry?.(new Error('customer-confirm 送信に失敗しました: 403'))).toBe(false)
   })
 })
