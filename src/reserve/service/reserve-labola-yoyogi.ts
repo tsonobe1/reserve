@@ -22,6 +22,14 @@ export const reserveLabolaYoyogi = async (
   reserveId: string,
   params: ReserveParams
 ): Promise<void> => {
+  if (params.facilityId !== 1) {
+    console.info('Skip reserve: 非対応施設', {
+      id: reserveId,
+      facilityId: params.facilityId,
+    })
+    return
+  }
+
   const siteCourtNo = toLabolaYoyogiCourtNo(params.courtNo)
   if (!siteCourtNo) {
     console.info('Skip reserve: 非対応コート番号', {

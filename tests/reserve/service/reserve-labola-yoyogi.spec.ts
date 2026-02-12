@@ -54,4 +54,23 @@ describe('reserveLabolaYoyogi', () => {
       })
     )
   })
+
+  it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {
+    const fetchMock = vi.fn(async () => new Response('', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await reserveLabolaYoyogi(
+      { LABOLA_YOYOGI_USERNAME: 'user', LABOLA_YOYOGI_PASSWORD: 'pass' },
+      'reserve-id-1',
+      {
+        facilityId: 2,
+        courtNo: 1,
+        date: '2026-02-20',
+        startTime: '10:00',
+        endTime: '11:00',
+      }
+    )
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
