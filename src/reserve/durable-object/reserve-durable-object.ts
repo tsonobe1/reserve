@@ -2,6 +2,28 @@ import { DurableObject } from 'cloudflare:workers'
 import { ReserveParamsSchema } from '../domain/reserve-request-schema'
 import { reserveLabolaYoyogi } from '../service/reserve-labola-yoyogi'
 
+const LABOLA_RETRY_BUDGET_MS = 12 * 60 * 1000
+const LABOLA_RETRY_MAX_ATTEMPT = 8
+const LABOLA_RETRY_NEXT_ALARM_DELAY_MS = 15 * 1000
+
+export const scheduleNextAlarmWhenRetryBudgetExceeded = async (
+  storage: { setAlarm: (time: number) => Promise<void> },
+  alarmStartedAt: number,
+  attempt: number,
+  now: number
+): Promise<boolean> => {
+  const elapsed = now - alarmStartedAt
+  const shouldScheduleNextAlarm =
+    elapsed >= LABOLA_RETRY_BUDGET_MS || attempt >= LABOLA_RETRY_MAX_ATTEMPT
+
+  if (!shouldScheduleNextAlarm) {
+    return false
+  }
+
+  await storage.setAlarm(now + LABOLA_RETRY_NEXT_ALARM_DELAY_MS)
+  return true
+}
+
 // Storage キー:
 // - params: POST ペイロードの params
 // Alarm:
