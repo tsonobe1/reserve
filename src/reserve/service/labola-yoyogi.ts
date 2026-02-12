@@ -246,3 +246,9 @@ export const submitLabolaYoyogiCustomerForms = async (
     body: customerConfirmForm.toString(),
   })
 }
+
+export const shouldRetryLabolaYoyogiError = (error: Error): boolean => {
+  return (
+    error.message.includes('相手側サーバ障害') || error.message.includes('通信エラーが発生しました')
+  )
+}
