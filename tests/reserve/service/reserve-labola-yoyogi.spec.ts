@@ -79,11 +79,21 @@ describe('reserveLabolaYoyogi', () => {
   })
 
   it('対応コート番号ならログインGET/POST後に予約URLへ遷移する', async () => {
-    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
+    const fetchMock = mockFetch(async (_url, init) => {
+      if (init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      return new Response('', { status: 200 })
+    })
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       LOGIN_URL,
@@ -121,7 +131,7 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       LOGIN_URL,
@@ -162,7 +172,17 @@ describe('reserveLabolaYoyogi', () => {
   })
 
   it('予約URL遷移後に customer-info/customer-confirm を送信する', async () => {
-    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
+    const fetchMock = mockFetch(async (_url, init) => {
+      if (init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      return new Response('', { status: 200 })
+    })
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
