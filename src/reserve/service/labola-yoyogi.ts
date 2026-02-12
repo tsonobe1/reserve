@@ -264,6 +264,15 @@ const mergeLabolaYoyogiFormValues = (
   return merged
 }
 
+const ensureLabolaYoyogiPostSuccess = (
+  response: Response,
+  action: 'customer-info' | 'customer-confirm'
+): void => {
+  if (!response.ok) {
+    throw new Error(`${action} 送信に失敗しました: ${response.status}`)
+  }
+}
+
 export const submitLabolaYoyogiCustomerForms = async (
   _reserveId: string,
   customerInfoForm: URLSearchParams,
@@ -284,6 +293,7 @@ export const submitLabolaYoyogiCustomerForms = async (
     headers,
     body: customerInfoForm.toString(),
   })
+  ensureLabolaYoyogiPostSuccess(customerInfoResponse, 'customer-info')
   const customerConfirmDefaults = extractLabolaYoyogiFormValues(await customerInfoResponse.text())
   const mergedCustomerConfirmForm = mergeLabolaYoyogiFormValues(
     customerConfirmDefaults,
@@ -295,9 +305,7 @@ export const submitLabolaYoyogiCustomerForms = async (
     headers,
     body: mergedCustomerConfirmForm.toString(),
   })
-  if (!customerConfirmResponse.ok) {
-    throw new Error(`customer-confirm 送信に失敗しました: ${customerConfirmResponse.status}`)
-  }
+  ensureLabolaYoyogiPostSuccess(customerConfirmResponse, 'customer-confirm')
 }
 
 export const shouldRetryLabolaYoyogiError = (error: Error): boolean => {

@@ -114,4 +114,34 @@ describe('submitLabolaYoyogiCustomerForms', () => {
       )
     ).rejects.toThrow('customer-confirm 送信に失敗しました: 500')
   })
+
+  it('customer-info が 500 の場合は例外を投げる', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
+      .submitLabolaYoyogiCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    mockFetch(async (url) => {
+      if (url === CUSTOMER_INFO_URL) {
+        return new Response('', { status: 500 })
+      }
+      return new Response('', { status: 200 })
+    })
+    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await expect(
+      submitCustomerForms?.(
+        RESERVE_ID,
+        customerInfoForm,
+        customerConfirmForm,
+        'csrftoken=abc; sessionid=xyz'
+      )
+    ).rejects.toThrow('customer-info 送信に失敗しました: 500')
+  })
 })
