@@ -11,6 +11,12 @@ type RetryState = {
   alarmStartedAt: number
 }
 
+export const shouldIncrementRetryState = (error: Error): boolean => {
+  return (
+    error.message.includes('相手側サーバ障害') || error.message.includes('通信エラーが発生しました')
+  )
+}
+
 export const scheduleNextAlarmWhenRetryBudgetExceeded = async (
   storage: { setAlarm: (time: number) => Promise<void> },
   alarmStartedAt: number,
