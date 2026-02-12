@@ -6,6 +6,11 @@ const LABOLA_RETRY_BUDGET_MS = 12 * 60 * 1000
 const LABOLA_RETRY_MAX_ATTEMPT = 8
 const LABOLA_RETRY_NEXT_ALARM_DELAY_MS = 15 * 1000
 
+type RetryState = {
+  attempt: number
+  alarmStartedAt: number
+}
+
 export const scheduleNextAlarmWhenRetryBudgetExceeded = async (
   storage: { setAlarm: (time: number) => Promise<void> },
   alarmStartedAt: number,
@@ -52,6 +57,23 @@ export class ReserveDurableObject extends DurableObject {
   }
 
   async alarm(): Promise<void> {
+    const retryState = await this.ctx.storage.get<RetryState>('retry_state')
+    if (retryState) {
+      const scheduledNext = await scheduleNextAlarmWhenRetryBudgetExceeded(
+        this.ctx.storage,
+        retryState.alarmStartedAt,
+        retryState.attempt,
+        Date.now()
+      )
+      if (scheduledNext) {
+        console.info('再試行予算に到達したため、次のalarmへ引き継ぎます', {
+          id: this.ctx.id.toString(),
+          attempt: retryState.attempt,
+        })
+        return
+      }
+    }
+
     const params = await this.ctx.storage.get('params')
     const parsed = ReserveParamsSchema.safeParse(params)
     if (!parsed.success) {
