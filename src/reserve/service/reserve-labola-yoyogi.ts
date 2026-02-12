@@ -2,7 +2,9 @@ import type { ReserveParams } from '../domain/reserve-request-schema'
 import {
   buildLabolaYoyogiBookingUrl,
   buildLabolaYoyogiLoginForm,
+  extractLabolaYoyogiFormValues,
   extractLabolaYoyogiCookieHeader,
+  fillLabolaYoyogiCustomerInfoRequiredValues,
   mergeLabolaYoyogiCookieHeader,
   postLabolaYoyogiLogin,
   prepareLabolaYoyogiLogin,
@@ -67,9 +69,23 @@ export const reserveLabolaYoyogi = async (
     activeCookieHeader,
     bookingResponse.headers.get('set-cookie') ?? undefined
   )
-  const customerInfoForm = new URLSearchParams({
-    submit_conf: '予約内容の確認',
-  })
+  const bookingPageHtml = await bookingResponse.text()
+  const extractedCustomerInfoValues = extractLabolaYoyogiFormValues(bookingPageHtml)
+  const filledCustomerInfoValues = fillLabolaYoyogiCustomerInfoRequiredValues(
+    extractedCustomerInfoValues,
+    env
+  )
+  filledCustomerInfoValues.hold_on_at = params.date
+  filledCustomerInfoValues.start = params.startTime.replace(':', '')
+  filledCustomerInfoValues.end = params.endTime.replace(':', '')
+  if (!filledCustomerInfoValues.payment_method) {
+    filledCustomerInfoValues.payment_method = 'front'
+  }
+  const customerInfoForm = new URLSearchParams()
+  for (const [key, value] of Object.entries(filledCustomerInfoValues)) {
+    customerInfoForm.set(key, value)
+  }
+  customerInfoForm.set('submit_conf', '予約内容の確認')
   const customerConfirmForm = new URLSearchParams({
     submit_ok: '申込む',
   })

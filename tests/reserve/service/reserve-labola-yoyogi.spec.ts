@@ -9,11 +9,33 @@ const VALID_ENV = {
   LABOLA_YOYOGI_USERNAME: 'user',
   LABOLA_YOYOGI_PASSWORD: 'pass',
 }
+const ENV_WITH_FALLBACK = {
+  ...VALID_ENV,
+  LABOLA_YOYOGI_NAME: '山田 太郎',
+  LABOLA_YOYOGI_DISPLAY_NAME: 'ヤマタロ',
+  LABOLA_YOYOGI_EMAIL: 'taro@example.com',
+  LABOLA_YOYOGI_ADDRESS: '東京都渋谷区',
+  LABOLA_YOYOGI_MOBILE_NUMBER: '090-1111-2222',
+}
 const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
 const BOOKING_URL =
   'https://labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
 const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
 const CUSTOMER_CONFIRM_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
+const BOOKING_PAGE_HTML = `
+<form method="post">
+  <input type="text" name="name" value="">
+  <input type="text" name="display_name" value="">
+  <input type="email" name="email" value="">
+  <input type="email" name="email_confirm" value="">
+  <input type="text" name="address" value="">
+  <input type="text" name="mobile_number" value="">
+  <input type="hidden" name="hold_on_at" value="">
+  <input type="radio" name="payment_method" value="front" checked>
+  <select name="start"><option value="1000" selected>10:00</option></select>
+  <select name="end"><option value="1100" selected>11:00</option></select>
+</form>
+`
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -151,6 +173,37 @@ describe('reserveLabolaYoyogi', () => {
         method: 'POST',
       })
     )
+  })
+
+  it('customer-info は抽出値と環境変数補完を含むフォームを送信する', async () => {
+    const fetchMock = mockFetch(async (_url, init) => {
+      if (init?.method === 'GET') {
+        return new Response(BOOKING_PAGE_HTML, {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=from-get; Path=/, sessionid=from-get-session; Path=/',
+          },
+        })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
+
+    const customerInfoCall = fetchMock.mock.calls[3]
+    expect(customerInfoCall?.[0]).toBe(CUSTOMER_INFO_URL)
+    const customerInfoInit = customerInfoCall?.[1] as RequestInit
+    const body = String(customerInfoInit.body)
+    expect(body).toContain('name=%E5%B1%B1%E7%94%B0+%E5%A4%AA%E9%83%8E')
+    expect(body).toContain('display_name=%E3%83%A4%E3%83%9E%E3%82%BF%E3%83%AD')
+    expect(body).toContain('email=taro%40example.com')
+    expect(body).toContain('email_confirm=taro%40example.com')
+    expect(body).toContain('address=%E6%9D%B1%E4%BA%AC%E9%83%BD%E6%B8%8B%E8%B0%B7%E5%8C%BA')
+    expect(body).toContain('mobile_number=090-1111-2222')
+    expect(body).toContain('hold_on_at=2026-02-20')
+    expect(body).toContain('start=1000')
+    expect(body).toContain('end=1100')
+    expect(body).toContain('submit_conf=%E4%BA%88%E7%B4%84%E5%86%85%E5%AE%B9%E3%81%AE%E7%A2%BA%E8%AA%8D')
   })
 
   it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {
