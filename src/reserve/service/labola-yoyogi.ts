@@ -124,3 +124,54 @@ export const buildLabolaYoyogiBookingUrl = (
   const compactEnd = endTime.replace(':', '')
   return `https://labola.jp/r/booking/rental/shop/3094/facility/${siteCourtNo}/${compactDate}-${compactStart}-${compactEnd}/customer-type/`
 }
+
+export const extractLabolaYoyogiFormValues = (html: string): Record<string, string> => {
+  const values: Record<string, string> = {}
+
+  for (const matched of html.matchAll(/<input\b[^>]*>/gi)) {
+    const tag = matched[0]
+    const name = tag.match(/\bname="([^"]+)"/i)?.[1]
+    if (!name) continue
+
+    const type = tag.match(/\btype="([^"]+)"/i)?.[1]?.toLowerCase() ?? 'text'
+    if ((type === 'radio' || type === 'checkbox') && !/\bchecked\b/i.test(tag)) {
+      continue
+    }
+
+    const value = tag.match(/\bvalue="([^"]*)"/i)?.[1]
+    if (value !== undefined) {
+      values[name] = value
+    } else if (type === 'checkbox') {
+      values[name] = 'on'
+    }
+  }
+
+  for (const matched of html.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/gi)) {
+    const block = matched[0]
+    const name = block.match(/<select\b[^>]*\bname="([^"]+)"/i)?.[1]
+    if (!name) continue
+
+    let selected: string | undefined
+    let first: string | undefined
+    for (const option of block.matchAll(/<option\b[^>]*>/gi)) {
+      const optionTag = option[0]
+      const optionValue = optionTag.match(/\bvalue="([^"]+)"/i)?.[1]
+      if (!optionValue) continue
+      if (!first) {
+        first = optionValue
+      }
+      if (/\bselected\b/i.test(optionTag)) {
+        selected = optionValue
+        break
+      }
+    }
+
+    if (selected) {
+      values[name] = selected
+    } else if (first) {
+      values[name] = first
+    }
+  }
+
+  return values
+}
