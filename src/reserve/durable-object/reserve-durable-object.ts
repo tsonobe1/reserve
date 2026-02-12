@@ -112,6 +112,9 @@ export class ReserveDurableObject extends DurableObject {
     })
     try {
       await reserveLabolaYoyogi(this.env, this.ctx.id.toString(), reserveParams)
+      if (retryState) {
+        await this.ctx.storage.delete('retry_state')
+      }
     } catch (error) {
       if (error instanceof Error && shouldIncrementRetryState(error)) {
         const nextRetryState = buildNextRetryState(retryState, Date.now())
