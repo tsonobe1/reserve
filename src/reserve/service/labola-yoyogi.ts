@@ -22,6 +22,14 @@ export const buildLabolaYoyogiLoginForm = (credentials: {
   })
 }
 
+export const extractLabolaYoyogiCookieHeader = (setCookieHeader: string): string | undefined => {
+  const cookiePairs = setCookieHeader.match(/\b(?:csrftoken|sessionid)=[^;,\s]+/g)
+  if (!cookiePairs || cookiePairs.length === 0) {
+    return undefined
+  }
+  return cookiePairs.join('; ')
+}
+
 export const postLabolaYoyogiLogin = async (
   reserveId: string,
   form: URLSearchParams

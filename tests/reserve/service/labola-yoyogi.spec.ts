@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildLabolaYoyogiLoginForm,
+  extractLabolaYoyogiCookieHeader,
   postLabolaYoyogiLogin,
   prepareLabolaYoyogiLogin,
 } from '../../../src/reserve/service/labola-yoyogi'
@@ -110,5 +111,20 @@ describe('postLabolaYoyogiLogin', () => {
     await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
       'ログインに失敗しました: IDまたはパスワードを確認してください'
     )
+  })
+})
+
+describe('extractLabolaYoyogiCookieHeader', () => {
+  it('set-cookie から csrftoken と sessionid を抽出して Cookie ヘッダへ変換する', () => {
+    const header =
+      'csrftoken=csrf-value; Path=/, sessionid=session-value; HttpOnly; Path=/; SameSite=Lax'
+
+    expect(extractLabolaYoyogiCookieHeader(header)).toBe(
+      'csrftoken=csrf-value; sessionid=session-value'
+    )
+  })
+
+  it('対象cookieが無い場合は undefined を返す', () => {
+    expect(extractLabolaYoyogiCookieHeader('foo=bar; Path=/')).toBeUndefined()
   })
 })
