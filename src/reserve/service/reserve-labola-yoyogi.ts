@@ -1,6 +1,7 @@
 import type { ReserveParams } from '../domain/reserve-request-schema'
 import {
   buildLabolaYoyogiLoginForm,
+  extractLabolaYoyogiCookieHeader,
   postLabolaYoyogiLogin,
   prepareLabolaYoyogiLogin,
   type LabolaYoyogiEnv,
@@ -41,7 +42,10 @@ export const reserveLabolaYoyogi = async (
 
   const credentials = await prepareLabolaYoyogiLogin(env, reserveId)
   const loginForm = buildLabolaYoyogiLoginForm(credentials)
-  await postLabolaYoyogiLogin(reserveId, loginForm)
+  const loginCookieHeader = credentials.loginSetCookieHeader
+    ? extractLabolaYoyogiCookieHeader(credentials.loginSetCookieHeader)
+    : undefined
+  await postLabolaYoyogiLogin(reserveId, loginForm, loginCookieHeader)
 
   console.log('Labola予約の準備が完了しました（代々木）', {
     id: reserveId,

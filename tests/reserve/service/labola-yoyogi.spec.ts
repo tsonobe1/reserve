@@ -38,6 +38,7 @@ describe('prepareLabolaYoyogiLogin', () => {
     await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
       username: 'user',
       password: 'pass',
+      loginSetCookieHeader: undefined,
     })
   })
 

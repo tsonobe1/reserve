@@ -75,7 +75,7 @@ export const postLabolaYoyogiLogin = async (
 export const prepareLabolaYoyogiLogin = async (
   env: LabolaYoyogiEnv,
   reserveId: string
-): Promise<{ username: string; password: string }> => {
+): Promise<{ username: string; password: string; loginSetCookieHeader?: string }> => {
   const username = env.LABOLA_YOYOGI_USERNAME
   const password = env.LABOLA_YOYOGI_PASSWORD
   if (!username || !password) {
@@ -106,5 +106,9 @@ export const prepareLabolaYoyogiLogin = async (
     status: loginPageResponse.status,
   })
 
-  return { username, password }
+  return {
+    username,
+    password,
+    loginSetCookieHeader: loginPageResponse.headers.get('set-cookie') ?? undefined,
+  }
 }
