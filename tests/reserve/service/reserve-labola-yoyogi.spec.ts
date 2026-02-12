@@ -4,6 +4,28 @@ import {
   toLabolaYoyogiCourtNo,
 } from '../../../src/reserve/service/reserve-labola-yoyogi'
 
+const RESERVE_ID = 'reserve-id-1'
+const VALID_ENV = {
+  LABOLA_YOYOGI_USERNAME: 'user',
+  LABOLA_YOYOGI_PASSWORD: 'pass',
+}
+const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
+
+const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
+  const fetchMock = vi.fn(impl)
+  vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+  return fetchMock
+}
+
+const createParams = (overrides?: Partial<Parameters<typeof reserveLabolaYoyogi>[2]>) => ({
+  facilityId: 1,
+  courtNo: 1,
+  date: '2026-02-20',
+  startTime: '10:00',
+  endTime: '11:00',
+  ...overrides,
+})
+
 describe('toLabolaYoyogiCourtNo', () => {
   it('UIのコート番号 1-4 をサイト用の値へ変換する', () => {
     expect(toLabolaYoyogiCourtNo(1)).toBe('479')
@@ -24,30 +46,19 @@ describe('reserveLabolaYoyogi', () => {
   })
 
   it('対応コート番号ならログインGET/POSTを実行する', async () => {
-    const fetchMock = vi.fn(async () => new Response('', { status: 200 }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
-    await reserveLabolaYoyogi(
-      { LABOLA_YOYOGI_USERNAME: 'user', LABOLA_YOYOGI_PASSWORD: 'pass' },
-      'reserve-id-1',
-      {
-        facilityId: 1,
-        courtNo: 1,
-        date: '2026-02-20',
-        startTime: '10:00',
-        endTime: '11:00',
-      }
-    )
+    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'https://labola.jp/r/shop/3094/member/login/',
+      LOGIN_URL,
       expect.objectContaining({ method: 'GET' })
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'https://labola.jp/r/shop/3094/member/login/',
+      LOGIN_URL,
       expect.objectContaining({
         method: 'POST',
         body: 'username=user&password=pass',
@@ -56,39 +67,17 @@ describe('reserveLabolaYoyogi', () => {
   })
 
   it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {
-    const fetchMock = vi.fn(async () => new Response('', { status: 200 }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
-    await reserveLabolaYoyogi(
-      { LABOLA_YOYOGI_USERNAME: 'user', LABOLA_YOYOGI_PASSWORD: 'pass' },
-      'reserve-id-1',
-      {
-        facilityId: 2,
-        courtNo: 1,
-        date: '2026-02-20',
-        startTime: '10:00',
-        endTime: '11:00',
-      }
-    )
+    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams({ facilityId: 2 }))
 
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('非対応の courtNo ならスキップして fetch を呼ばない', async () => {
-    const fetchMock = vi.fn(async () => new Response('', { status: 200 }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
-    await reserveLabolaYoyogi(
-      { LABOLA_YOYOGI_USERNAME: 'user', LABOLA_YOYOGI_PASSWORD: 'pass' },
-      'reserve-id-1',
-      {
-        facilityId: 1,
-        courtNo: 9,
-        date: '2026-02-20',
-        startTime: '10:00',
-        endTime: '11:00',
-      }
-    )
+    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams({ courtNo: 9 }))
 
     expect(fetchMock).not.toHaveBeenCalled()
   })
