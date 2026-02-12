@@ -301,4 +301,29 @@ describe('reserveLabolaYoyogi', () => {
     )
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
+
+  it('予約URL GET中に通信エラーが発生した場合は例外を投げる', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', { status: 200 })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        throw new TypeError('network down')
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
+      '予約ページ取得中に通信エラーが発生しました'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
 })

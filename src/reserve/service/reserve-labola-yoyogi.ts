@@ -57,14 +57,19 @@ export const reserveLabolaYoyogi = async (
     params.startTime,
     params.endTime
   )
-  const bookingResponse = await fetch(bookingUrl, {
-    method: 'GET',
-    headers: activeCookieHeader
-      ? {
-          Cookie: activeCookieHeader,
-        }
-      : undefined,
-  })
+  let bookingResponse: Response
+  try {
+    bookingResponse = await fetch(bookingUrl, {
+      method: 'GET',
+      headers: activeCookieHeader
+        ? {
+            Cookie: activeCookieHeader,
+          }
+        : undefined,
+    })
+  } catch {
+    throw new Error('予約ページ取得中に通信エラーが発生しました')
+  }
   if (!bookingResponse.ok) {
     throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
   }
