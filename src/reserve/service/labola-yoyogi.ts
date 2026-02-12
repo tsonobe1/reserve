@@ -15,6 +15,7 @@ const ERROR_LOGIN_POST_NETWORK = 'ログインPOST中に通信エラーが発生
 const ERROR_LOGIN_PAGE_NETWORK = 'ログインページ取得中に通信エラーが発生しました'
 const ERROR_LOGIN_INVALID_CREDENTIALS =
   'ログインに失敗しました: IDまたはパスワードを確認してください'
+const ERROR_LOGIN_POST_UPSTREAM = '相手側サーバ障害のためログインできませんでした'
 
 export const buildLabolaYoyogiLoginForm = (credentials: {
   username: string
@@ -53,6 +54,9 @@ export const postLabolaYoyogiLogin = async (
       body: form.toString(),
     })
     if (!response.ok) {
+      if (response.status >= 500) {
+        throw new Error(ERROR_LOGIN_POST_UPSTREAM)
+      }
       throw new Error(`ログインPOSTに失敗しました: ${response.status}`)
     }
     const responseBody = await response.clone().text()
@@ -64,7 +68,8 @@ export const postLabolaYoyogiLogin = async (
     if (
       error instanceof Error &&
       (error.message.startsWith('ログインPOSTに失敗しました:') ||
-        error.message === ERROR_LOGIN_INVALID_CREDENTIALS)
+        error.message === ERROR_LOGIN_INVALID_CREDENTIALS ||
+        error.message === ERROR_LOGIN_POST_UPSTREAM)
     ) {
       throw error
     }
