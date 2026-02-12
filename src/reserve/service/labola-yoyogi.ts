@@ -305,11 +305,16 @@ export const submitLabolaYoyogiCustomerForms = async (
     customerConfirmForm
   )
 
-  const customerConfirmResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL, {
-    method: 'POST',
-    headers,
-    body: mergedCustomerConfirmForm.toString(),
-  })
+  let customerConfirmResponse: Response
+  try {
+    customerConfirmResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL, {
+      method: 'POST',
+      headers,
+      body: mergedCustomerConfirmForm.toString(),
+    })
+  } catch {
+    throw new Error('customer-confirm 送信中に通信エラーが発生しました')
+  }
   ensureLabolaYoyogiPostSuccess(customerConfirmResponse, 'customer-confirm')
 }
 
