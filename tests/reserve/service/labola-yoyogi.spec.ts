@@ -99,12 +99,21 @@ describe('postLabolaYoyogiLogin', () => {
     )
   })
 
-  it('HTTPエラー時はステータス付きで例外を投げる', async () => {
+  it('4xxのHTTPエラー時はステータス付きで例外を投げる', async () => {
+    mockFetch(async () => new Response('', { status: 400 }))
+
+    const form = createLoginForm()
+    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
+      'ログインPOSTに失敗しました: 400'
+    )
+  })
+
+  it('5xxのHTTPエラー時は相手側サーバ障害として例外を投げる', async () => {
     mockFetch(async () => new Response('', { status: 503 }))
 
     const form = createLoginForm()
     await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
-      'ログインPOSTに失敗しました: 503'
+      '相手側サーバ障害のためログインできませんでした'
     )
   })
 
