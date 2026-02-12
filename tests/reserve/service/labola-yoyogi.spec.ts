@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { prepareLabolaYoyogiLogin } from '../../../src/reserve/service/labola-yoyogi'
+import {
+  buildLabolaYoyogiLoginForm,
+  prepareLabolaYoyogiLogin,
+} from '../../../src/reserve/service/labola-yoyogi'
 
 describe('prepareLabolaYoyogiLogin', () => {
   afterEach(() => {
@@ -40,5 +43,14 @@ describe('prepareLabolaYoyogiLogin', () => {
         'reserve-id-1'
       )
     ).rejects.toThrow('ログインページ取得中に通信エラーが発生しました')
+  })
+})
+
+describe('buildLabolaYoyogiLoginForm', () => {
+  it('username/password を Django ログイン向けフォームへ変換する', () => {
+    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'pass' })
+
+    expect(form.get('username')).toBe('user')
+    expect(form.get('password')).toBe('pass')
   })
 })

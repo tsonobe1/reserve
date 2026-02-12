@@ -3,6 +3,16 @@ export type LabolaYoyogiEnv = {
   LABOLA_YOYOGI_PASSWORD?: string
 }
 
+export const buildLabolaYoyogiLoginForm = (credentials: {
+  username: string
+  password: string
+}): URLSearchParams => {
+  return new URLSearchParams({
+    username: credentials.username,
+    password: credentials.password,
+  })
+}
+
 export const prepareLabolaYoyogiLogin = async (
   env: LabolaYoyogiEnv,
   reserveId: string
