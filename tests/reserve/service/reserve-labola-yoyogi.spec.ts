@@ -103,6 +103,33 @@ describe('reserveLabolaYoyogi', () => {
     )
   })
 
+  it('ログインGETで取得したcookieを予約URL GETへ引き継ぐ', async () => {
+    const fetchMock = mockFetch(async (_url, init) => {
+      if (init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      BOOKING_URL,
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Cookie: 'csrftoken=get-token; sessionid=get-session',
+        }),
+      })
+    )
+  })
+
   it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {
     const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 

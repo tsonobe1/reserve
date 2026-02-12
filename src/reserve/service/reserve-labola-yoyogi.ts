@@ -3,6 +3,7 @@ import {
   buildLabolaYoyogiBookingUrl,
   buildLabolaYoyogiLoginForm,
   extractLabolaYoyogiCookieHeader,
+  mergeLabolaYoyogiCookieHeader,
   postLabolaYoyogiLogin,
   prepareLabolaYoyogiLogin,
   type LabolaYoyogiEnv,
@@ -43,19 +44,28 @@ export const reserveLabolaYoyogi = async (
 
   const credentials = await prepareLabolaYoyogiLogin(env, reserveId)
   const loginForm = buildLabolaYoyogiLoginForm(credentials)
-  const loginCookieHeader = credentials.loginSetCookieHeader
+  let activeCookieHeader = credentials.loginSetCookieHeader
     ? extractLabolaYoyogiCookieHeader(credentials.loginSetCookieHeader)
     : undefined
-  await postLabolaYoyogiLogin(reserveId, loginForm, loginCookieHeader)
+  await postLabolaYoyogiLogin(reserveId, loginForm, activeCookieHeader)
   const bookingUrl = buildLabolaYoyogiBookingUrl(
     siteCourtNo,
     params.date,
     params.startTime,
     params.endTime
   )
-  await fetch(bookingUrl, {
+  const bookingResponse = await fetch(bookingUrl, {
     method: 'GET',
+    headers: activeCookieHeader
+      ? {
+          Cookie: activeCookieHeader,
+        }
+      : undefined,
   })
+  activeCookieHeader = mergeLabolaYoyogiCookieHeader(
+    activeCookieHeader,
+    bookingResponse.headers.get('set-cookie') ?? undefined
+  )
 
   console.log('Labola予約の準備が完了しました（代々木）', {
     id: reserveId,
@@ -64,5 +74,6 @@ export const reserveLabolaYoyogi = async (
     endTime: params.endTime,
     uiCourtNo: params.courtNo,
     siteCourtNo,
+    hasSessionCookie: Boolean(activeCookieHeader),
   })
 }
