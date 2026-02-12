@@ -32,14 +32,20 @@ export const extractLabolaYoyogiCookieHeader = (setCookieHeader: string): string
 
 export const postLabolaYoyogiLogin = async (
   reserveId: string,
-  form: URLSearchParams
+  form: URLSearchParams,
+  cookieHeader?: string
 ): Promise<Response> => {
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    }
+    if (cookieHeader) {
+      headers.Cookie = cookieHeader
+    }
+
     const response = await fetch(LABOLA_YOYOGI_LOGIN_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers,
       body: form.toString(),
     })
     if (!response.ok) {

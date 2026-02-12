@@ -69,7 +69,7 @@ describe('postLabolaYoyogiLogin', () => {
     const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
     const form = createLoginForm()
-    await postLabolaYoyogiLogin(RESERVE_ID, form)
+    await postLabolaYoyogiLogin(RESERVE_ID, form, 'csrftoken=csrf-value; sessionid=session-value')
 
     // ログインPOSTが1回だけ送信されることを確認する。
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -79,6 +79,9 @@ describe('postLabolaYoyogiLogin', () => {
       LOGIN_URL,
       expect.objectContaining({
         method: 'POST',
+        headers: expect.objectContaining({
+          Cookie: 'csrftoken=csrf-value; sessionid=session-value',
+        }),
         body: form.toString(),
       })
     )
