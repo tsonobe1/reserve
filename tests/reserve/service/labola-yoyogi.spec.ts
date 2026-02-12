@@ -106,4 +106,18 @@ describe('postLabolaYoyogiLogin', () => {
       'ログインPOSTに失敗しました: 503'
     )
   })
+
+  it('200でも認証失敗文言が含まれる場合は例外を投げる', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () => new Response('会員IDまたはパスワードが正しくありません', { status: 200 })
+      ) as unknown as typeof fetch
+    )
+
+    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'wrong-pass' })
+    await expect(postLabolaYoyogiLogin('reserve-id-1', form)).rejects.toThrow(
+      'ログインに失敗しました: IDまたはパスワードを確認してください'
+    )
+  })
 })

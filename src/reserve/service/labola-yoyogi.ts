@@ -29,9 +29,17 @@ export const postLabolaYoyogiLogin = async (
     if (!response.ok) {
       throw new Error(`ログインPOSTに失敗しました: ${response.status}`)
     }
+    const responseBody = await response.clone().text()
+    if (responseBody.includes('会員IDまたはパスワードが正しくありません')) {
+      throw new Error('ログインに失敗しました: IDまたはパスワードを確認してください')
+    }
     return response
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith('ログインPOSTに失敗しました:')) {
+    if (
+      error instanceof Error &&
+      (error.message.startsWith('ログインPOSTに失敗しました:') ||
+        error.message === 'ログインに失敗しました: IDまたはパスワードを確認してください')
+    ) {
       throw error
     }
     console.error('LabolaログインPOST中に通信エラーが発生しました', {
