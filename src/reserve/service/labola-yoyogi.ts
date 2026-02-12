@@ -19,14 +19,21 @@ export const postLabolaYoyogiLogin = async (
 ): Promise<Response> => {
   const loginUrl = 'https://labola.jp/r/shop/3094/member/login/'
   try {
-    return await fetch(loginUrl, {
+    const response = await fetch(loginUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: form.toString(),
     })
+    if (!response.ok) {
+      throw new Error(`ログインPOSTに失敗しました: ${response.status}`)
+    }
+    return response
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('ログインPOSTに失敗しました:')) {
+      throw error
+    }
     console.error('LabolaログインPOST中に通信エラーが発生しました', {
       id: reserveId,
       error,

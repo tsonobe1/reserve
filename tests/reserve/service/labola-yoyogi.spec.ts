@@ -94,4 +94,16 @@ describe('postLabolaYoyogiLogin', () => {
       'ログインPOST中に通信エラーが発生しました'
     )
   })
+
+  it('HTTPエラー時はステータス付きで例外を投げる', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 503 })) as unknown as typeof fetch
+    )
+
+    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'pass' })
+    await expect(postLabolaYoyogiLogin('reserve-id-1', form)).rejects.toThrow(
+      'ログインPOSTに失敗しました: 503'
+    )
+  })
 })
