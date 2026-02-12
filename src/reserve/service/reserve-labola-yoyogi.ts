@@ -65,6 +65,9 @@ export const reserveLabolaYoyogi = async (
         }
       : undefined,
   })
+  if (!bookingResponse.ok) {
+    throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
+  }
   activeCookieHeader = mergeLabolaYoyogiCookieHeader(
     activeCookieHeader,
     bookingResponse.headers.get('set-cookie') ?? undefined
