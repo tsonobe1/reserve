@@ -35,6 +35,35 @@ export const extractLabolaYoyogiCookieHeader = (setCookieHeader: string): string
   return cookiePairs.join('; ')
 }
 
+export const mergeLabolaYoyogiCookieHeader = (
+  currentCookieHeader: string | undefined,
+  setCookieHeader: string | undefined
+): string | undefined => {
+  const extracted = setCookieHeader ? extractLabolaYoyogiCookieHeader(setCookieHeader) : undefined
+  if (!currentCookieHeader) {
+    return extracted
+  }
+  if (!extracted) {
+    return currentCookieHeader
+  }
+
+  const merged = new Map<string, string>()
+  for (const cookie of currentCookieHeader.split(';').map((part) => part.trim())) {
+    const [key, value] = cookie.split('=')
+    if (!key || !value) continue
+    merged.set(key, value)
+  }
+  for (const cookie of extracted.split(';').map((part) => part.trim())) {
+    const [key, value] = cookie.split('=')
+    if (!key || !value) continue
+    merged.set(key, value)
+  }
+
+  return Array.from(merged.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join('; ')
+}
+
 export const postLabolaYoyogiLogin = async (
   reserveId: string,
   form: URLSearchParams,
