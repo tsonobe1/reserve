@@ -27,6 +27,25 @@ const buildNextRetryState = (current: RetryState | undefined, now: number): Retr
   }
 }
 
+export const updateRetryStateOnRetryableError = async (
+  storage: {
+    put: (key: string, value: unknown) => Promise<void>
+    setAlarm: (time: number) => Promise<void>
+  },
+  currentRetryState: RetryState | undefined,
+  error: Error,
+  now: number
+): Promise<boolean> => {
+  if (!shouldIncrementRetryState(error)) {
+    return false
+  }
+
+  const nextRetryState = buildNextRetryState(currentRetryState, now)
+  await storage.put('retry_state', nextRetryState)
+  await storage.setAlarm(now + LABOLA_RETRY_NEXT_ALARM_DELAY_MS)
+  return true
+}
+
 export const scheduleNextAlarmWhenRetryBudgetExceeded = async (
   storage: { setAlarm: (time: number) => Promise<void> },
   alarmStartedAt: number,
@@ -116,10 +135,17 @@ export class ReserveDurableObject extends DurableObject {
         await this.ctx.storage.delete('retry_state')
       }
     } catch (error) {
-      if (error instanceof Error && shouldIncrementRetryState(error)) {
+      if (error instanceof Error) {
+        const handled = await updateRetryStateOnRetryableError(
+          this.ctx.storage,
+          retryState,
+          error,
+          Date.now()
+        )
+        if (!handled) {
+          throw error
+        }
         const nextRetryState = buildNextRetryState(retryState, Date.now())
-        await this.ctx.storage.put('retry_state', nextRetryState)
-        await this.ctx.storage.setAlarm(Date.now() + LABOLA_RETRY_NEXT_ALARM_DELAY_MS)
         console.warn('予約処理で再試行対象エラーが発生したため、次のalarmを設定します', {
           id: this.ctx.id.toString(),
           attempt: nextRetryState.attempt,
