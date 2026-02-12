@@ -4,6 +4,10 @@ export type LabolaYoyogiEnv = {
 }
 
 const LABOLA_YOYOGI_LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
+const LABOLA_YOYOGI_CUSTOMER_INFO_URL =
+  'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
+const LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL =
+  'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
 const LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT = '会員IDまたはパスワードが正しくありません'
 
 const ERROR_MISSING_CREDENTIALS = 'LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です'
@@ -210,4 +214,30 @@ export const fillLabolaYoyogiCustomerInfoRequiredValues = (
   }
 
   return filled
+}
+
+export const submitLabolaYoyogiCustomerForms = async (
+  _reserveId: string,
+  customerInfoForm: URLSearchParams,
+  customerConfirmForm: URLSearchParams,
+  cookieHeader?: string
+): Promise<void> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  }
+  if (cookieHeader) {
+    headers.Cookie = cookieHeader
+  }
+
+  await fetch(LABOLA_YOYOGI_CUSTOMER_INFO_URL, {
+    method: 'POST',
+    headers,
+    body: customerInfoForm.toString(),
+  })
+
+  await fetch(LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL, {
+    method: 'POST',
+    headers,
+    body: customerConfirmForm.toString(),
+  })
 }
