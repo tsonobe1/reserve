@@ -5,6 +5,22 @@ import {
   prepareLabolaYoyogiLogin,
 } from '../../../src/reserve/service/labola-yoyogi'
 
+const RESERVE_ID = 'reserve-id-1'
+const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
+const VALID_ENV = {
+  LABOLA_YOYOGI_USERNAME: 'user',
+  LABOLA_YOYOGI_PASSWORD: 'pass',
+}
+
+const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
+  const fetchMock = vi.fn(impl)
+  vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+  return fetchMock
+}
+
+const createLoginForm = (password = 'pass') =>
+  buildLabolaYoyogiLoginForm({ username: VALID_ENV.LABOLA_YOYOGI_USERNAME, password })
+
 describe('prepareLabolaYoyogiLogin', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -12,38 +28,25 @@ describe('prepareLabolaYoyogiLogin', () => {
 
   it('認証情報が不足している場合は例外を投げる', async () => {
     await expect(
-      prepareLabolaYoyogiLogin({ LABOLA_YOYOGI_USERNAME: 'user' }, 'reserve-id-1')
+      prepareLabolaYoyogiLogin({ LABOLA_YOYOGI_USERNAME: 'user' }, RESERVE_ID)
     ).rejects.toThrow('LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です')
   })
 
   it('ログインページ取得が成功したら username/password を返す', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('', { status: 200 })) as unknown as typeof fetch
-    )
-
-    await expect(
-      prepareLabolaYoyogiLogin(
-        { LABOLA_YOYOGI_USERNAME: 'user', LABOLA_YOYOGI_PASSWORD: 'pass' },
-        'reserve-id-1'
-      )
-    ).resolves.toStrictEqual({ username: 'user', password: 'pass' })
+    mockFetch(async () => new Response('', { status: 200 }))
+    await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
+      username: 'user',
+      password: 'pass',
+    })
   })
 
   it('通信エラー時は日本語メッセージで例外を投げる', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new Error('network down')
-      }) as unknown as typeof fetch
+    mockFetch(async () => {
+      throw new Error('network down')
+    })
+    await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).rejects.toThrow(
+      'ログインページ取得中に通信エラーが発生しました'
     )
-
-    await expect(
-      prepareLabolaYoyogiLogin(
-        { LABOLA_YOYOGI_USERNAME: 'user', LABOLA_YOYOGI_PASSWORD: 'pass' },
-        'reserve-id-1'
-      )
-    ).rejects.toThrow('ログインページ取得中に通信エラーが発生しました')
   })
 })
 
@@ -62,18 +65,17 @@ describe('postLabolaYoyogiLogin', () => {
   })
 
   it('ログインPOSTを送信する', async () => {
-    const fetchMock = vi.fn(async () => new Response('', { status: 200 }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
-    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'pass' })
-    await postLabolaYoyogiLogin('reserve-id-1', form)
+    const form = createLoginForm()
+    await postLabolaYoyogiLogin(RESERVE_ID, form)
 
     // ログインPOSTが1回だけ送信されることを確認する。
     expect(fetchMock).toHaveBeenCalledTimes(1)
     // URLと必須パラメータ(method/body)のみを検証する。
     // objectContaining を使うことで、将来ヘッダ等が増えてもこの意図は維持できる。
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://labola.jp/r/shop/3094/member/login/',
+      LOGIN_URL,
       expect.objectContaining({
         method: 'POST',
         body: form.toString(),
@@ -82,41 +84,30 @@ describe('postLabolaYoyogiLogin', () => {
   })
 
   it('通信エラー時は日本語メッセージで例外を投げる', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new Error('network down')
-      }) as unknown as typeof fetch
-    )
+    mockFetch(async () => {
+      throw new Error('network down')
+    })
 
-    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'pass' })
-    await expect(postLabolaYoyogiLogin('reserve-id-1', form)).rejects.toThrow(
+    const form = createLoginForm()
+    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
       'ログインPOST中に通信エラーが発生しました'
     )
   })
 
   it('HTTPエラー時はステータス付きで例外を投げる', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('', { status: 503 })) as unknown as typeof fetch
-    )
+    mockFetch(async () => new Response('', { status: 503 }))
 
-    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'pass' })
-    await expect(postLabolaYoyogiLogin('reserve-id-1', form)).rejects.toThrow(
+    const form = createLoginForm()
+    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
       'ログインPOSTに失敗しました: 503'
     )
   })
 
   it('200でも認証失敗文言が含まれる場合は例外を投げる', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () => new Response('会員IDまたはパスワードが正しくありません', { status: 200 })
-      ) as unknown as typeof fetch
-    )
+    mockFetch(async () => new Response('会員IDまたはパスワードが正しくありません', { status: 200 }))
 
-    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'wrong-pass' })
-    await expect(postLabolaYoyogiLogin('reserve-id-1', form)).rejects.toThrow(
+    const form = createLoginForm('wrong-pass')
+    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
       'ログインに失敗しました: IDまたはパスワードを確認してください'
     )
   })

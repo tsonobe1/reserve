@@ -3,6 +3,15 @@ export type LabolaYoyogiEnv = {
   LABOLA_YOYOGI_PASSWORD?: string
 }
 
+const LABOLA_YOYOGI_LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
+const LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT = '会員IDまたはパスワードが正しくありません'
+
+const ERROR_MISSING_CREDENTIALS = 'LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です'
+const ERROR_LOGIN_POST_NETWORK = 'ログインPOST中に通信エラーが発生しました'
+const ERROR_LOGIN_PAGE_NETWORK = 'ログインページ取得中に通信エラーが発生しました'
+const ERROR_LOGIN_INVALID_CREDENTIALS =
+  'ログインに失敗しました: IDまたはパスワードを確認してください'
+
 export const buildLabolaYoyogiLoginForm = (credentials: {
   username: string
   password: string
@@ -17,9 +26,8 @@ export const postLabolaYoyogiLogin = async (
   reserveId: string,
   form: URLSearchParams
 ): Promise<Response> => {
-  const loginUrl = 'https://labola.jp/r/shop/3094/member/login/'
   try {
-    const response = await fetch(loginUrl, {
+    const response = await fetch(LABOLA_YOYOGI_LOGIN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -30,15 +38,15 @@ export const postLabolaYoyogiLogin = async (
       throw new Error(`ログインPOSTに失敗しました: ${response.status}`)
     }
     const responseBody = await response.clone().text()
-    if (responseBody.includes('会員IDまたはパスワードが正しくありません')) {
-      throw new Error('ログインに失敗しました: IDまたはパスワードを確認してください')
+    if (responseBody.includes(LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT)) {
+      throw new Error(ERROR_LOGIN_INVALID_CREDENTIALS)
     }
     return response
   } catch (error) {
     if (
       error instanceof Error &&
       (error.message.startsWith('ログインPOSTに失敗しました:') ||
-        error.message === 'ログインに失敗しました: IDまたはパスワードを確認してください')
+        error.message === ERROR_LOGIN_INVALID_CREDENTIALS)
     ) {
       throw error
     }
@@ -46,7 +54,7 @@ export const postLabolaYoyogiLogin = async (
       id: reserveId,
       error,
     })
-    throw new Error('ログインPOST中に通信エラーが発生しました')
+    throw new Error(ERROR_LOGIN_POST_NETWORK)
   }
 }
 
@@ -57,7 +65,7 @@ export const prepareLabolaYoyogiLogin = async (
   const username = env.LABOLA_YOYOGI_USERNAME
   const password = env.LABOLA_YOYOGI_PASSWORD
   if (!username || !password) {
-    throw new Error('LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です')
+    throw new Error(ERROR_MISSING_CREDENTIALS)
   }
 
   console.log('Labola認証情報を読み込みました', {
@@ -66,16 +74,15 @@ export const prepareLabolaYoyogiLogin = async (
     hasPassword: Boolean(password),
   })
 
-  const loginUrl = 'https://labola.jp/r/shop/3094/member/login/'
   let loginPageResponse: Response
   try {
-    loginPageResponse = await fetch(loginUrl, { method: 'GET' })
+    loginPageResponse = await fetch(LABOLA_YOYOGI_LOGIN_URL, { method: 'GET' })
   } catch (error) {
     console.error('Labolaログインページ取得中に通信エラーが発生しました', {
       id: reserveId,
       error,
     })
-    throw new Error('ログインページ取得中に通信エラーが発生しました')
+    throw new Error(ERROR_LOGIN_PAGE_NETWORK)
   }
   if (!loginPageResponse.ok) {
     throw new Error(`ログインページ取得に失敗しました: ${loginPageResponse.status}`)
