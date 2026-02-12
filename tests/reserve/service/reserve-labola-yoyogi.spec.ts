@@ -36,6 +36,13 @@ const BOOKING_PAGE_HTML = `
   <select name="end"><option value="1100" selected>11:00</option></select>
 </form>
 `
+const CUSTOMER_CONFIRM_PAGE_HTML = `
+<form method="post">
+  <input type="hidden" name="csrfmiddlewaretoken" value="confirm-token">
+  <input type="checkbox" name="agree_tos" value="on" checked>
+  <input type="checkbox" name="agree_pp" value="on" checked>
+</form>
+`
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -204,6 +211,34 @@ describe('reserveLabolaYoyogi', () => {
     expect(body).toContain('start=1000')
     expect(body).toContain('end=1100')
     expect(body).toContain('submit_conf=%E4%BA%88%E7%B4%84%E5%86%85%E5%AE%B9%E3%81%AE%E7%A2%BA%E8%AA%8D')
+  })
+
+  it('customer-confirm は応答HTMLのhidden/同意値を含むフォームを送信する', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return new Response(BOOKING_PAGE_HTML, {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=from-get; Path=/, sessionid=from-get-session; Path=/',
+          },
+        })
+      }
+      if (url === CUSTOMER_INFO_URL && init?.method === 'POST') {
+        return new Response(CUSTOMER_CONFIRM_PAGE_HTML, { status: 200 })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
+
+    const customerConfirmCall = fetchMock.mock.calls[4]
+    expect(customerConfirmCall?.[0]).toBe(CUSTOMER_CONFIRM_URL)
+    const customerConfirmInit = customerConfirmCall?.[1] as RequestInit
+    const body = String(customerConfirmInit.body)
+    expect(body).toContain('csrfmiddlewaretoken=confirm-token')
+    expect(body).toContain('agree_tos=on')
+    expect(body).toContain('agree_pp=on')
+    expect(body).toContain('submit_ok=%E7%94%B3%E8%BE%BC%E3%82%80')
   })
 
   it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {

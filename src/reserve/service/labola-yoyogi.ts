@@ -250,6 +250,20 @@ export const fillLabolaYoyogiCustomerInfoRequiredValues = (
   return filled
 }
 
+const mergeLabolaYoyogiFormValues = (
+  defaults: Record<string, string>,
+  overrides: URLSearchParams
+): URLSearchParams => {
+  const merged = new URLSearchParams()
+  for (const [key, value] of Object.entries(defaults)) {
+    merged.set(key, value)
+  }
+  for (const [key, value] of overrides.entries()) {
+    merged.set(key, value)
+  }
+  return merged
+}
+
 export const submitLabolaYoyogiCustomerForms = async (
   _reserveId: string,
   customerInfoForm: URLSearchParams,
@@ -265,16 +279,21 @@ export const submitLabolaYoyogiCustomerForms = async (
   }
   headers.Cookie = cookieHeader
 
-  await fetch(LABOLA_YOYOGI_CUSTOMER_INFO_URL, {
+  const customerInfoResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_INFO_URL, {
     method: 'POST',
     headers,
     body: customerInfoForm.toString(),
   })
+  const customerConfirmDefaults = extractLabolaYoyogiFormValues(await customerInfoResponse.text())
+  const mergedCustomerConfirmForm = mergeLabolaYoyogiFormValues(
+    customerConfirmDefaults,
+    customerConfirmForm
+  )
 
   await fetch(LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL, {
     method: 'POST',
     headers,
-    body: customerConfirmForm.toString(),
+    body: mergedCustomerConfirmForm.toString(),
   })
 }
 
