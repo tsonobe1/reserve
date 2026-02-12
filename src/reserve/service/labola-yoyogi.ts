@@ -20,7 +20,16 @@ export const prepareLabolaYoyogiLogin = async (
   })
 
   const loginUrl = 'https://labola.jp/r/shop/3094/member/login/'
-  const loginPageResponse = await fetch(loginUrl, { method: 'GET' })
+  let loginPageResponse: Response
+  try {
+    loginPageResponse = await fetch(loginUrl, { method: 'GET' })
+  } catch (error) {
+    console.error('Labolaログインページ取得中に通信エラーが発生しました', {
+      id: reserveId,
+      error,
+    })
+    throw new Error('ログインページ取得中に通信エラーが発生しました')
+  }
   if (!loginPageResponse.ok) {
     throw new Error(`ログインページ取得に失敗しました: ${loginPageResponse.status}`)
   }
