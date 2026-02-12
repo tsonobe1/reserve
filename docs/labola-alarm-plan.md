@@ -51,9 +51,11 @@
 - [x] 再試行対象:
   - HTTP `5xx`
   - 通信エラー（fetch例外）
+  - `customer-info/customer-confirm` 送信失敗メッセージ（`5xx` / 通信エラー）
 - [x] 再試行しない:
   - 認証失敗（ID/PASS不一致）
   - `4xx`
+  - `customer-info/customer-confirm` 送信失敗メッセージ（`4xx`）
 
 - [x] 同一alarm内の上限:
   - 壁時計 `12分` まで
@@ -78,11 +80,14 @@
 ## 実装状況まとめ
 - 完了:
   - 予約URL生成・遷移
+  - 予約URL GET の失敗検知（非2xxで例外）
   - ログインCookieの予約URL GET への引き継ぎ
   - `customer-info -> customer-confirm` の最小POST接続
   - `customer-info/customer-confirm` 送信時のCookie必須化
+  - `customer-info/customer-confirm` 送信時の通信エラーを日本語メッセージで例外化
   - `customer-info` 応答HTMLから `customer-confirm` 送信用の hidden/同意値を抽出して送信
   - `customer-confirm` 応答ステータスの失敗検知（非2xxで例外）
+  - `customer-info` 応答ステータスの失敗検知（非2xxで例外）
   - Durable Object alarm の retry state 管理（作成/増分/成功時削除）
   - 予算超過時の `setAlarm(+15秒)` 引き継ぎ
 - 未完了:
