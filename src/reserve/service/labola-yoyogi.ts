@@ -1,4 +1,4 @@
-type LabolaYoyogiEnv = {
+export type LabolaYoyogiEnv = {
   LABOLA_YOYOGI_USERNAME?: string
   LABOLA_YOYOGI_PASSWORD?: string
 }

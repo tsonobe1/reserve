@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import { ReserveParamsSchema } from '../domain/reserve-request-schema'
-import { prepareLabolaYoyogiLogin } from '../service/labola-yoyogi'
+import { reserveLabolaYoyogi } from '../service/reserve-labola-yoyogi'
 
 // Storage キー:
 // - params: POST ペイロードの params
@@ -50,6 +50,6 @@ export class ReserveDurableObject extends DurableObject {
       id: this.ctx.id.toString(),
       params: reserveParams,
     })
-    await prepareLabolaYoyogiLogin(this.env, this.ctx.id.toString())
+    await reserveLabolaYoyogi(this.env, this.ctx.id.toString(), reserveParams)
   }
 }
