@@ -114,6 +114,9 @@ export const reserveLabolaYoyogi = async (
     throw new Error('希望時間帯は予約不可（すでに予約済み）')
   }
   const extractedCustomerInfoValues = extractLabolaYoyogiFormValues(bookingPageHtml)
+  if ((extractedCustomerInfoValues.submit_member ?? '').includes('ログインして予約')) {
+    throw new Error('ログインに失敗しました: IDまたはパスワードを確認してください')
+  }
   const filledCustomerInfoValues = fillLabolaYoyogiCustomerInfoRequiredValues(
     extractedCustomerInfoValues,
     env

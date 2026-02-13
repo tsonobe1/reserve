@@ -42,6 +42,12 @@ const BOOKING_PAGE_ALREADY_RESERVED_HTML = `
   </ul>
 </div>
 `
+const BOOKING_PAGE_LOGIN_REQUIRED_HTML = `
+<form method="post">
+  <input type="hidden" name="member_type_id" value="397">
+  <input type="submit" name="submit_member" value="ログインして予約">
+</form>
+`
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -399,5 +405,33 @@ describe('reserveLabolaYoyogi', () => {
       '希望時間帯は予約不可（カレンダーへリダイレクト）'
     )
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('未ログイン誘導フォームを検出した場合はログイン失敗として中断する', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', { status: 200 })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return new Response(BOOKING_PAGE_LOGIN_REQUIRED_HTML, { status: 200 })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
+      'ログインに失敗しました: IDまたはパスワードを確認してください'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(
+      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))
+    ).toBe(false)
   })
 })
