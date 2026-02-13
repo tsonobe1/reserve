@@ -152,6 +152,20 @@ describe('postLabolaYoyogiLogin', () => {
       'ログインに失敗しました: IDまたはパスワードを確認してください'
     )
   })
+
+  it('200でもログイン画面タイトルのままなら例外を投げる', async () => {
+    mockFetch(
+      async () =>
+        new Response('<title>国立代々木競技場フットサルコート｜メンバーログイン - LaBOLA総合予約</title>', {
+          status: 200,
+        })
+    )
+
+    const form = createLoginForm()
+    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
+      'ログインに失敗しました: IDまたはパスワードを確認してください'
+    )
+  })
 })
 
 describe('extractLabolaYoyogiCookieHeader', () => {
