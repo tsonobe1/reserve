@@ -397,8 +397,14 @@ export const submitLabolaYoyogiCustomerForms = async (
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',
+    Referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
+    Origin: 'https://labola.jp',
   }
   headers.Cookie = cookieHeader
+  const csrfToken = customerInfoForm.get('csrfmiddlewaretoken')
+  if (csrfToken) {
+    headers['X-CSRFToken'] = csrfToken
+  }
 
   let customerInfoResponse: Response
   try {

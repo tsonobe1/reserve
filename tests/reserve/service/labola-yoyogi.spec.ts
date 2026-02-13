@@ -38,6 +38,22 @@ describe('prepareLabolaYoyogiLogin', () => {
     await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
       username: 'user',
       password: 'pass',
+      csrfMiddlewareToken: undefined,
+      loginSetCookieHeader: undefined,
+    })
+  })
+
+  it('ログインページHTMLから csrfmiddlewaretoken を抽出して返す', async () => {
+    mockFetch(
+      async () =>
+        new Response('<input type="hidden" name="csrfmiddlewaretoken" value="csrf-token-123">', {
+          status: 200,
+        })
+    )
+    await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
+      username: 'user',
+      password: 'pass',
+      csrfMiddlewareToken: 'csrf-token-123',
       loginSetCookieHeader: undefined,
     })
   })
@@ -58,6 +74,17 @@ describe('buildLabolaYoyogiLoginForm', () => {
 
     expect(form.get('username')).toBe('user')
     expect(form.get('password')).toBe('pass')
+    expect(form.get('csrfmiddlewaretoken')).toBeNull()
+  })
+
+  it('csrfmiddlewaretoken がある場合はフォームへ含める', () => {
+    const form = buildLabolaYoyogiLoginForm({
+      username: 'user',
+      password: 'pass',
+      csrfMiddlewareToken: 'csrf-token-123',
+    })
+
+    expect(form.get('csrfmiddlewaretoken')).toBe('csrf-token-123')
   })
 })
 

@@ -13,6 +13,9 @@ type ReserveParams = {
   facility?: string
   court?: string
   reserveDate?: string
+  facilityId?: number
+  courtNo?: number
+  date?: string
   startTime?: string
   endTime?: string
 }
@@ -52,9 +55,10 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
 
   const getFacilityAndCourt = (reserve: ReserveRecord): string => {
     const params = toParams(reserve.params)
-    const facilityCode = params.facility ?? ''
+    const facilityCode =
+      params.facility ?? (params.facilityId != null ? String(params.facilityId) : '')
     const facility = facilityNameMap[facilityCode] ?? (facilityCode || '-')
-    const court = params.court ?? '-'
+    const court = params.court ?? (params.courtNo != null ? String(params.courtNo) : '-')
     return `${facility}/${court}`
   }
 
@@ -62,8 +66,9 @@ export const ReserveListPanel = ({ token }: ReserveListPanelProps) => {
     reserve: ReserveRecord
   ): { date: string; timeRange: string } | null => {
     const params = toParams(reserve.params)
-    if (!params.reserveDate || !params.startTime || !params.endTime) return null
-    const reserveDate = params.reserveDate.replace(/-/g, '/')
+    const reserveDateRaw = params.reserveDate ?? params.date
+    if (!reserveDateRaw || !params.startTime || !params.endTime) return null
+    const reserveDate = reserveDateRaw.replace(/-/g, '/')
     return {
       date: reserveDate,
       timeRange: `${params.startTime}〜${params.endTime}`,

@@ -28,7 +28,10 @@ describe('submitLabolaYoyogiCustomerForms', () => {
       | undefined
 
     const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
-    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerInfoForm = new URLSearchParams({
+      csrfmiddlewaretoken: 'csrf-token-from-form',
+      submit_conf: '予約内容の確認',
+    })
     const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
 
     expect(submitCustomerForms).toBeTypeOf('function')
@@ -48,6 +51,9 @@ describe('submitLabolaYoyogiCustomerForms', () => {
         body: customerInfoForm.toString(),
         headers: expect.objectContaining({
           Cookie: 'csrftoken=abc; sessionid=xyz',
+          Referer: CUSTOMER_INFO_URL,
+          Origin: 'https://labola.jp',
+          'X-CSRFToken': 'csrf-token-from-form',
         }),
       })
     )

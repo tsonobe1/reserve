@@ -57,9 +57,9 @@ export const ReserveFormPanel = ({ token, onTokenChange }: ReserveFormPanelProps
         },
         body: JSON.stringify({
           params: {
-            facility: '1',
-            court,
-            reserveDate,
+            facilityId: 1,
+            courtNo: Number(court),
+            date: reserveDate,
             startTime,
             endTime,
           },
