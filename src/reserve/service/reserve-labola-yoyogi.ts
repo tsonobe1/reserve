@@ -87,6 +87,12 @@ export const reserveLabolaYoyogi = async (
   if (!bookingResponse.ok) {
     throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
   }
+  if (
+    bookingResponse.redirected &&
+    bookingResponse.url.includes('https://labola.jp/r/shop/3094/calendar/')
+  ) {
+    throw new Error('希望時間帯は予約不可（カレンダーへリダイレクト）')
+  }
   const bookingBodyPreview = await bookingResponse.clone().text()
   console.log('Labola HTTP Response', {
     id: reserveId,

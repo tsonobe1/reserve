@@ -358,4 +358,39 @@ describe('reserveLabolaYoyogi', () => {
     )
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
+
+  it('予約ページ取得がカレンダーへリダイレクトされた場合は中断する', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', { status: 200 })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          redirected: true,
+          url: 'https://labola.jp/r/shop/3094/calendar/',
+          headers: new Headers(),
+          text: async () => '',
+          clone() {
+            return this
+          },
+        } as unknown as Response
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
+      '希望時間帯は予約不可（カレンダーへリダイレクト）'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
 })
