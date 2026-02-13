@@ -50,7 +50,11 @@ export const reserveLabolaYoyogi = async (
   let activeCookieHeader = credentials.loginSetCookieHeader
     ? extractLabolaYoyogiCookieHeader(credentials.loginSetCookieHeader)
     : undefined
-  await postLabolaYoyogiLogin(reserveId, loginForm, activeCookieHeader)
+  const loginResponse = await postLabolaYoyogiLogin(reserveId, loginForm, activeCookieHeader)
+  activeCookieHeader = mergeLabolaYoyogiCookieHeader(
+    activeCookieHeader,
+    loginResponse.headers.get('set-cookie') ?? undefined
+  )
   const bookingUrl = buildLabolaYoyogiBookingUrl(
     siteCourtNo,
     params.date,

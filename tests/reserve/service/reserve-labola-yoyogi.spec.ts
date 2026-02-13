@@ -20,8 +20,6 @@ const ENV_WITH_FALLBACK = {
 const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
 const BOOKING_URL =
   'https://labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
-const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
-const CUSTOMER_CONFIRM_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
 const BOOKING_PAGE_HTML = `
 <form method="post">
   <input type="text" name="name" value="">
@@ -42,13 +40,6 @@ const BOOKING_PAGE_ALREADY_RESERVED_HTML = `
     <li class="error">すでに予約済みです。他の時間を選択してください。</li>
   </ul>
 </div>
-`
-const CUSTOMER_CONFIRM_PAGE_HTML = `
-<form method="post">
-  <input type="hidden" name="csrfmiddlewaretoken" value="confirm-token">
-  <input type="checkbox" name="agree_tos" value="on" checked>
-  <input type="checkbox" name="agree_pp" value="on" checked>
-</form>
 `
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
@@ -100,7 +91,7 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       LOGIN_URL,
@@ -138,7 +129,7 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       LOGIN_URL,
@@ -178,7 +169,42 @@ describe('reserveLabolaYoyogi', () => {
     )
   })
 
-  it('予約URL遷移後に customer-info/customer-confirm を送信する', async () => {
+  it('ログインPOSTで更新されたcookieを予約URL GETへ引き継ぐ', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'sessionid=post-session; Path=/',
+          },
+        })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      BOOKING_URL,
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Cookie: 'csrftoken=get-token; sessionid=post-session',
+        }),
+      })
+    )
+  })
+
+  it('Dry run中は customer-info/customer-confirm を送信しない', async () => {
     const fetchMock = mockFetch(async (_url, init) => {
       if (init?.method === 'GET') {
         return new Response('', {
@@ -193,23 +219,16 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      4,
-      CUSTOMER_INFO_URL,
-      expect.objectContaining({
-        method: 'POST',
-      })
-    )
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      5,
-      CUSTOMER_CONFIRM_URL,
-      expect.objectContaining({
-        method: 'POST',
-      })
-    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(
+      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))
+    ).toBe(false)
+    expect(
+      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-confirm/'))
+    ).toBe(false)
   })
 
-  it('customer-info は抽出値と環境変数補完を含むフォームを送信する', async () => {
+  it('Dry run中でも customer-info 用フォーム値は組み立てられる', async () => {
     const fetchMock = mockFetch(async (_url, init) => {
       if (init?.method === 'GET') {
         return new Response(BOOKING_PAGE_HTML, {
@@ -224,23 +243,13 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
-    const customerInfoCall = fetchMock.mock.calls[3]
-    expect(customerInfoCall?.[0]).toBe(CUSTOMER_INFO_URL)
-    const customerInfoInit = customerInfoCall?.[1] as RequestInit
-    const body = String(customerInfoInit.body)
-    expect(body).toContain('name=%E5%B1%B1%E7%94%B0+%E5%A4%AA%E9%83%8E')
-    expect(body).toContain('display_name=%E3%83%A4%E3%83%9E%E3%82%BF%E3%83%AD')
-    expect(body).toContain('email=taro%40example.com')
-    expect(body).toContain('email_confirm=taro%40example.com')
-    expect(body).toContain('address=%E6%9D%B1%E4%BA%AC%E9%83%BD%E6%B8%8B%E8%B0%B7%E5%8C%BA')
-    expect(body).toContain('mobile_number=090-1111-2222')
-    expect(body).toContain('hold_on_at=2026-02-20')
-    expect(body).toContain('start=1000')
-    expect(body).toContain('end=1100')
-    expect(body).toContain('submit_conf=%E4%BA%88%E7%B4%84%E5%86%85%E5%AE%B9%E3%81%AE%E7%A2%BA%E8%AA%8D')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(
+      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))
+    ).toBe(false)
   })
 
-  it('customer-confirm は応答HTMLのhidden/同意値を含むフォームを送信する', async () => {
+  it('Dry run中は customer-confirm を送信しない', async () => {
     const fetchMock = mockFetch(async (url, init) => {
       if (url === BOOKING_URL && init?.method === 'GET') {
         return new Response(BOOKING_PAGE_HTML, {
@@ -250,22 +259,15 @@ describe('reserveLabolaYoyogi', () => {
           },
         })
       }
-      if (url === CUSTOMER_INFO_URL && init?.method === 'POST') {
-        return new Response(CUSTOMER_CONFIRM_PAGE_HTML, { status: 200 })
-      }
       return new Response('', { status: 200 })
     })
 
     await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
-    const customerConfirmCall = fetchMock.mock.calls[4]
-    expect(customerConfirmCall?.[0]).toBe(CUSTOMER_CONFIRM_URL)
-    const customerConfirmInit = customerConfirmCall?.[1] as RequestInit
-    const body = String(customerConfirmInit.body)
-    expect(body).toContain('csrfmiddlewaretoken=confirm-token')
-    expect(body).toContain('agree_tos=on')
-    expect(body).toContain('agree_pp=on')
-    expect(body).toContain('submit_ok=%E7%94%B3%E8%BE%BC%E3%82%80')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(
+      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-confirm/'))
+    ).toBe(false)
   })
 
   it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {
