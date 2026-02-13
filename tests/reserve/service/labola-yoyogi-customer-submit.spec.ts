@@ -175,6 +175,46 @@ describe('submitLabolaYoyogiCustomerForms', () => {
     ).rejects.toThrow('customer-info 送信中に通信エラーが発生しました')
   })
 
+  it('customer-info がカレンダーへリダイレクトされた場合は予約済みとして中断する', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
+      .submitLabolaYoyogiCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    mockFetch(async (url) => {
+      if (url === CUSTOMER_INFO_URL) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: true,
+          url: 'https://labola.jp/r/shop/3094/calendar/',
+          headers: new Headers(),
+          text: async () => '<div>すでに予約済みです。他の時間を選択してください。</div>',
+          clone() {
+            return this
+          },
+        } as unknown as Response
+      }
+      return new Response('', { status: 200 })
+    })
+    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await expect(
+      submitCustomerForms?.(
+        RESERVE_ID,
+        customerInfoForm,
+        customerConfirmForm,
+        'csrftoken=abc; sessionid=xyz'
+      )
+    ).rejects.toThrow('希望時間帯は予約不可（すでに予約済み）')
+  })
+
   it('customer-confirm 送信中に通信エラーが発生した場合は例外を投げる', async () => {
     const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
       .submitLabolaYoyogiCustomerForms as
