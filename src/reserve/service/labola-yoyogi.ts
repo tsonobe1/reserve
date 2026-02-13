@@ -386,7 +386,10 @@ export const submitLabolaYoyogiCustomerForms = async (
   reserveId: string,
   customerInfoForm: URLSearchParams,
   customerConfirmForm: URLSearchParams,
-  cookieHeader?: string
+  cookieHeader?: string,
+  options?: {
+    skipFinalSubmit?: boolean
+  }
 ): Promise<void> => {
   if (!cookieHeader) {
     throw new Error('customer-info/customer-confirm 送信に必要なCookieがありません')
@@ -439,6 +442,13 @@ export const submitLabolaYoyogiCustomerForms = async (
     customerConfirmDefaults,
     customerConfirmForm
   )
+  if (options?.skipFinalSubmit) {
+    console.log('Dry run: customer-confirm最終送信をスキップします', {
+      id: reserveId,
+      step: 'customer-confirm-post',
+    })
+    return
+  }
 
   let customerConfirmResponse: Response
   try {

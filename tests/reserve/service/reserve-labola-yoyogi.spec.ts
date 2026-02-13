@@ -20,6 +20,7 @@ const ENV_WITH_FALLBACK = {
 const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
 const BOOKING_URL =
   'https://labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
+const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
 const BOOKING_PAGE_HTML = `
 <form method="post">
   <input type="text" name="name" value="">
@@ -91,7 +92,7 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       LOGIN_URL,
@@ -129,7 +130,7 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       LOGIN_URL,
@@ -204,7 +205,7 @@ describe('reserveLabolaYoyogi', () => {
     )
   })
 
-  it('Dry run中は customer-info/customer-confirm を送信しない', async () => {
+  it('Dry run中は customer-info は送信し customer-confirm は送信しない', async () => {
     const fetchMock = mockFetch(async (_url, init) => {
       if (init?.method === 'GET') {
         return new Response('', {
@@ -219,10 +220,10 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(
-      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))
-    ).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))).toBe(
+      true
+    )
     expect(
       fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-confirm/'))
     ).toBe(false)
@@ -243,10 +244,14 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(
-      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))
-    ).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      CUSTOMER_INFO_URL,
+      expect.objectContaining({
+        method: 'POST',
+      })
+    )
   })
 
   it('Dry run中は customer-confirm を送信しない', async () => {
@@ -264,7 +269,7 @@ describe('reserveLabolaYoyogi', () => {
 
     await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(
       fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-confirm/'))
     ).toBe(false)

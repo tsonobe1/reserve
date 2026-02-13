@@ -132,17 +132,17 @@ export const reserveLabolaYoyogi = async (
   const customerConfirmForm = new URLSearchParams({
     submit_ok: '申込む',
   })
-  console.log('Dry run: customer-confirm送信前で停止します', {
+  console.log('Dry run: customer-confirm最終送信前で停止します', {
     id: reserveId,
-    hasSessionCookie: Boolean(activeCookieHeader),
+    hasCookie: Boolean(activeCookieHeader),
     customerInfoKeys: Array.from(customerInfoForm.keys()),
     customerConfirmKeys: Array.from(customerConfirmForm.keys()),
   })
-  // await submitLabolaYoyogiCustomerForms(
-  //   reserveId,
-  //   customerInfoForm,
-  //   customerConfirmForm,
-  //   activeCookieHeader
-  // )
-  return
+  await submitLabolaYoyogiCustomerForms(
+    reserveId,
+    customerInfoForm,
+    customerConfirmForm,
+    activeCookieHeader,
+    { skipFinalSubmit: true }
+  )
 }

@@ -64,6 +64,40 @@ describe('submitLabolaYoyogiCustomerForms', () => {
     )
   })
 
+  it('skipFinalSubmit=true の場合は customer-confirm POST を送信しない', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
+      .submitLabolaYoyogiCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string,
+          options?: { skipFinalSubmit?: boolean }
+        ) => Promise<void>)
+      | undefined
+
+    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
+    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await submitCustomerForms?.(
+      RESERVE_ID,
+      customerInfoForm,
+      customerConfirmForm,
+      'csrftoken=abc; sessionid=xyz',
+      { skipFinalSubmit: true }
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      CUSTOMER_INFO_URL,
+      expect.objectContaining({
+        method: 'POST',
+      })
+    )
+  })
+
   it('Cookieヘッダが無い場合は送信せず例外を投げる', async () => {
     const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
       .submitLabolaYoyogiCustomerForms as
