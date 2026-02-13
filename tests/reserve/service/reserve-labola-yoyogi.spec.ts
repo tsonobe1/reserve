@@ -36,6 +36,13 @@ const BOOKING_PAGE_HTML = `
   <select name="end"><option value="1100" selected>11:00</option></select>
 </form>
 `
+const BOOKING_PAGE_ALREADY_RESERVED_HTML = `
+<div id="flash_messages" class="alert alert-info">
+  <ul class="messages">
+    <li class="error">すでに予約済みです。他の時間を選択してください。</li>
+  </ul>
+</div>
+`
 const CUSTOMER_CONFIRM_PAGE_HTML = `
 <form method="post">
   <input type="hidden" name="csrfmiddlewaretoken" value="confirm-token">
@@ -323,6 +330,31 @@ describe('reserveLabolaYoyogi', () => {
 
     await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
       '予約ページ取得中に通信エラーが発生しました'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('予約済みメッセージを検出した場合は中断する', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', { status: 200 })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return new Response(BOOKING_PAGE_ALREADY_RESERVED_HTML, { status: 200 })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
+      '希望時間帯は予約不可（すでに予約済み）'
     )
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })

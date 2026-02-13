@@ -59,6 +59,20 @@ export const reserveLabolaYoyogi = async (
   )
   let bookingResponse: Response
   try {
+    console.log('Labola HTTP Request', {
+      id: reserveId,
+      step: 'booking-page-get',
+      method: 'GET',
+      url: bookingUrl,
+      cookieKeys: activeCookieHeader
+        ? activeCookieHeader
+            .split(';')
+            .map((pair) => pair.trim().split('=')[0])
+            .filter(Boolean)
+            .join(', ')
+        : 'none',
+      payload: null,
+    })
     bookingResponse = await fetch(bookingUrl, {
       method: 'GET',
       headers: activeCookieHeader
@@ -73,11 +87,22 @@ export const reserveLabolaYoyogi = async (
   if (!bookingResponse.ok) {
     throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
   }
+  const bookingBodyPreview = await bookingResponse.clone().text()
+  console.log('Labola HTTP Response', {
+    id: reserveId,
+    step: 'booking-page-get',
+    status: bookingResponse.status,
+    bodySize: bookingBodyPreview.length,
+    bodyPreview: bookingBodyPreview.slice(0, 300),
+  })
   activeCookieHeader = mergeLabolaYoyogiCookieHeader(
     activeCookieHeader,
     bookingResponse.headers.get('set-cookie') ?? undefined
   )
   const bookingPageHtml = await bookingResponse.text()
+  if (bookingPageHtml.includes('すでに予約済みです')) {
+    throw new Error('希望時間帯は予約不可（すでに予約済み）')
+  }
   const extractedCustomerInfoValues = extractLabolaYoyogiFormValues(bookingPageHtml)
   const filledCustomerInfoValues = fillLabolaYoyogiCustomerInfoRequiredValues(
     extractedCustomerInfoValues,
@@ -97,20 +122,17 @@ export const reserveLabolaYoyogi = async (
   const customerConfirmForm = new URLSearchParams({
     submit_ok: '申込む',
   })
-  await submitLabolaYoyogiCustomerForms(
-    reserveId,
-    customerInfoForm,
-    customerConfirmForm,
-    activeCookieHeader
-  )
-
-  console.log('Labola予約の準備が完了しました（代々木）', {
+  console.log('Dry run: customer-confirm送信前で停止します', {
     id: reserveId,
-    date: params.date,
-    startTime: params.startTime,
-    endTime: params.endTime,
-    uiCourtNo: params.courtNo,
-    siteCourtNo,
     hasSessionCookie: Boolean(activeCookieHeader),
+    customerInfoKeys: Array.from(customerInfoForm.keys()),
+    customerConfirmKeys: Array.from(customerConfirmForm.keys()),
   })
+  // await submitLabolaYoyogiCustomerForms(
+  //   reserveId,
+  //   customerInfoForm,
+  //   customerConfirmForm,
+  //   activeCookieHeader
+  // )
+  return
 }
