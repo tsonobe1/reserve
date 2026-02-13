@@ -215,6 +215,42 @@ describe('submitLabolaYoyogiCustomerForms', () => {
     ).rejects.toThrow('希望時間帯は予約不可（すでに予約済み）')
   })
 
+  it('customer-info の messages Cookie に予約済み文言がある場合は中断する', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
+      .submitLabolaYoyogiCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    mockFetch(async (url) => {
+      if (url === CUSTOMER_INFO_URL) {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie':
+              'messages="...\\u3059\\u3067\\u306b\\u4e88\\u7d04\\u6e08\\u307f\\u3067\\u3059..."; Path=/',
+          },
+        })
+      }
+      return new Response('', { status: 200 })
+    })
+    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await expect(
+      submitCustomerForms?.(
+        RESERVE_ID,
+        customerInfoForm,
+        customerConfirmForm,
+        'csrftoken=abc; sessionid=xyz'
+      )
+    ).rejects.toThrow('希望時間帯は予約不可（すでに予約済み）')
+  })
+
   it('customer-confirm 送信中に通信エラーが発生した場合は例外を投げる', async () => {
     const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
       .submitLabolaYoyogiCustomerForms as

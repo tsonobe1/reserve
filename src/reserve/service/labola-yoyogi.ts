@@ -9,6 +9,9 @@ const LABOLA_YOYOGI_CUSTOMER_INFO_URL =
 const LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL =
   'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
 const LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT = '会員IDまたはパスワードが正しくありません'
+const LABOLA_YOYOGI_ALREADY_RESERVED_TEXT = 'すでに予約済みです'
+const LABOLA_YOYOGI_ALREADY_RESERVED_UNICODE_TEXT =
+  '\\u3059\\u3067\\u306b\\u4e88\\u7d04\\u6e08\\u307f\\u3067\\u3059'
 
 const ERROR_MISSING_CREDENTIALS = 'LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です'
 const ERROR_LOGIN_POST_NETWORK = 'ログインPOST中に通信エラーが発生しました'
@@ -424,7 +427,10 @@ export const submitLabolaYoyogiCustomerForms = async (
   if (
     (customerInfoResponse.redirected &&
       customerInfoResponse.url.includes('https://labola.jp/r/shop/3094/calendar/')) ||
-    customerInfoPreview.preview.includes('すでに予約済みです')
+    customerInfoPreview.preview.includes(LABOLA_YOYOGI_ALREADY_RESERVED_TEXT) ||
+    (customerInfoResponse.headers.get('set-cookie') ?? '').includes(
+      LABOLA_YOYOGI_ALREADY_RESERVED_UNICODE_TEXT
+    )
   ) {
     throw new Error('希望時間帯は予約不可（すでに予約済み）')
   }
