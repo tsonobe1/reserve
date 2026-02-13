@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import { ReserveParamsSchema } from '../domain/reserve-request-schema'
 import { reserveLabolaYoyogi } from '../service/reserve-labola-yoyogi'
+import { updateStatusByDoId } from '../repository/reserve'
 
 const LABOLA_RETRY_BUDGET_MS = 12 * 60 * 1000
 const LABOLA_RETRY_MAX_ATTEMPT = 8
@@ -15,6 +16,26 @@ export const shouldIncrementRetryState = (error: Error): boolean => {
   return (
     error.message.includes('相手側サーバ障害') || error.message.includes('通信エラーが発生しました')
   )
+}
+
+export const shouldMarkAsFailed = (error: Error): boolean => {
+  return error.message.includes('希望時間帯は予約不可')
+}
+
+const updateReserveStatusSafely = async (
+  db: D1Database,
+  doId: string,
+  status: 'done' | 'fail'
+): Promise<void> => {
+  try {
+    await updateStatusByDoId(db, doId, status)
+  } catch (error) {
+    console.warn('予約ステータス更新に失敗しました（処理は継続）', {
+      id: doId,
+      status,
+      error,
+    })
+  }
 }
 
 const buildNextRetryState = (current: RetryState | undefined, now: number): RetryState => {
@@ -131,11 +152,20 @@ export class ReserveDurableObject extends DurableObject {
     })
     try {
       await reserveLabolaYoyogi(this.env, this.ctx.id.toString(), reserveParams)
+      await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'done')
       if (retryState) {
         await this.ctx.storage.delete('retry_state')
       }
     } catch (error) {
       if (error instanceof Error) {
+        if (shouldMarkAsFailed(error)) {
+          await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'fail')
+          console.info('予約不可のため fail で終了します', {
+            id: this.ctx.id.toString(),
+            error: error.message,
+          })
+          return
+        }
         const handled = await updateRetryStateOnRetryableError(
           this.ctx.storage,
           retryState,

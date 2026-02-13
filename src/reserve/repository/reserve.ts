@@ -87,3 +87,14 @@ export const remove = async (db: D1Database, id: number): Promise<number> => {
 
   return result.meta?.changes ?? 0
 }
+
+export const updateStatusByDoId = async (
+  db: D1Database,
+  doId: string,
+  status: string
+): Promise<number> => {
+  const query = 'update reserves set status = ?1 where do_id = ?2'
+  const result = await db.prepare(query).bind(status, doId).run()
+
+  return result.meta?.changes ?? 0
+}

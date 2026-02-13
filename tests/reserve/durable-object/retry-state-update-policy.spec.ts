@@ -35,3 +35,23 @@ describe('updateRetryStateOnRetryableError', () => {
     expect(setAlarm).not.toHaveBeenCalled()
   })
 })
+
+describe('shouldMarkAsFailed', () => {
+  it('予約不可エラーなら true を返す', () => {
+    const shouldMarkAsFailed = (reserveDoModule as Record<string, unknown>).shouldMarkAsFailed as
+      | ((error: Error) => boolean)
+      | undefined
+
+    expect(shouldMarkAsFailed).toBeTypeOf('function')
+    expect(shouldMarkAsFailed?.(new Error('希望時間帯は予約不可（すでに予約済み）'))).toBe(true)
+  })
+
+  it('通信エラーは false を返す', () => {
+    const shouldMarkAsFailed = (reserveDoModule as Record<string, unknown>).shouldMarkAsFailed as
+      | ((error: Error) => boolean)
+      | undefined
+
+    expect(shouldMarkAsFailed).toBeTypeOf('function')
+    expect(shouldMarkAsFailed?.(new Error('ログインPOST中に通信エラーが発生しました'))).toBe(false)
+  })
+})
