@@ -10,6 +10,7 @@ const LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL =
   'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
 const LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT = '会員IDまたはパスワードが正しくありません'
 const LABOLA_YOYOGI_LOGIN_PAGE_TITLE_TEXT = 'メンバーログイン - LaBOLA総合予約'
+const LABOLA_YOYOGI_CALENDAR_PAGE_TITLE_TEXT = '空き情報・予約 - LaBOLA総合予約'
 const LABOLA_YOYOGI_ALREADY_RESERVED_TEXT = 'すでに予約済みです'
 const LABOLA_YOYOGI_ALREADY_RESERVED_UNICODE_TEXT =
   '\\u3059\\u3067\\u306b\\u4e88\\u7d04\\u6e08\\u307f\\u3067\\u3059'
@@ -441,6 +442,7 @@ export const submitLabolaYoyogiCustomerForms = async (
     (customerInfoResponse.redirected &&
       customerInfoResponse.url.includes('https://labola.jp/r/shop/3094/calendar/')) ||
     customerInfoPreview.preview.includes(LABOLA_YOYOGI_ALREADY_RESERVED_TEXT) ||
+    customerInfoPreview.preview.includes(LABOLA_YOYOGI_CALENDAR_PAGE_TITLE_TEXT) ||
     (customerInfoResponse.headers.get('set-cookie') ?? '').includes(
       LABOLA_YOYOGI_ALREADY_RESERVED_UNICODE_TEXT
     )
