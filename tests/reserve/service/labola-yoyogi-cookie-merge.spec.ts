@@ -10,4 +10,13 @@ describe('mergeLabolaYoyogiCookieHeader', () => {
 
     expect(merged).toBe('csrftoken=booking-csrf; sessionid=booking-session')
   })
+
+  it('csrftoken/sessionid 以外のCookieも保持しつつ更新する', () => {
+    const merged = mergeLabolaYoyogiCookieHeader(
+      'csrftoken=old-csrf; booking-prod=old-booking',
+      'booking-prod=new-booking; Path=/; HttpOnly, sessionid=new-session; Path=/'
+    )
+
+    expect(merged).toBe('csrftoken=old-csrf; booking-prod=new-booking; sessionid=new-session')
+  })
 })

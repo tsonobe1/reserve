@@ -69,8 +69,9 @@ export const buildLabolaYoyogiLoginForm = (credentials: {
   csrfMiddlewareToken?: string
 }): URLSearchParams => {
   const form = new URLSearchParams({
-    username: credentials.username,
+    membership_code: credentials.username,
     password: credentials.password,
+    member_type_id: '397',
   })
   if (credentials.csrfMiddlewareToken) {
     form.set('csrfmiddlewaretoken', credentials.csrfMiddlewareToken)
@@ -79,8 +80,12 @@ export const buildLabolaYoyogiLoginForm = (credentials: {
 }
 
 export const extractLabolaYoyogiCookieHeader = (setCookieHeader: string): string | undefined => {
-  const cookiePairs = setCookieHeader.match(/\b(?:csrftoken|sessionid)=[^;,\s]+/g)
-  if (!cookiePairs || cookiePairs.length === 0) {
+  const setCookies = setCookieHeader.split(/,(?=\s*[A-Za-z0-9!#$%&'*+.^_`|~-]+=)/)
+  const cookiePairs = setCookies
+    .map((cookie) => cookie.trim().split(';')[0]?.trim())
+    .filter((cookie): cookie is string => Boolean(cookie && cookie.includes('=')))
+
+  if (cookiePairs.length === 0) {
     return undefined
   }
   return cookiePairs.join('; ')
@@ -146,15 +151,21 @@ export const postLabolaYoyogiLogin = async (
       method: 'POST',
       headers,
       body: form.toString(),
+      redirect: 'manual',
     })
     const responsePreview = await safeResponsePreview(response)
+    const locationHeader = response.headers.get('location') ?? undefined
     console.log('Labola HTTP Response', {
       id: reserveId,
       step: 'login-post',
       status: response.status,
+      location: locationHeader,
       bodySize: responsePreview.bodySize,
       bodyPreview: responsePreview.preview,
     })
+    if (response.status >= 300 && response.status < 400) {
+      return response
+    }
     if (!response.ok) {
       if (response.status >= 500) {
         throw new Error(ERROR_LOGIN_POST_UPSTREAM)

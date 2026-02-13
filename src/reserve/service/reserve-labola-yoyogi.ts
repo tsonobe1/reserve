@@ -89,7 +89,44 @@ export const reserveLabolaYoyogi = async (
     throw new Error('予約ページ取得中に通信エラーが発生しました')
   }
   if (!bookingResponse.ok) {
-    throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
+    if (bookingResponse.status >= 300 && bookingResponse.status < 400) {
+      const location = bookingResponse.headers.get('location')
+      if (!location) {
+        throw new Error('予約ページ取得に失敗しました: 302（遷移先なし）')
+      }
+      const redirectedUrl = new URL(location, bookingUrl).toString()
+      try {
+        console.log('Labola HTTP Request', {
+          id: reserveId,
+          step: 'booking-page-get-redirect',
+          method: 'GET',
+          url: redirectedUrl,
+          cookieKeys: activeCookieHeader
+            ? activeCookieHeader
+                .split(';')
+                .map((pair) => pair.trim().split('=')[0])
+                .filter(Boolean)
+                .join(', ')
+            : 'none',
+          payload: null,
+        })
+        bookingResponse = await fetch(redirectedUrl, {
+          method: 'GET',
+          headers: activeCookieHeader
+            ? {
+                Cookie: activeCookieHeader,
+              }
+            : undefined,
+        })
+      } catch {
+        throw new Error('予約ページリダイレクト先取得中に通信エラーが発生しました')
+      }
+      if (!bookingResponse.ok) {
+        throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
+      }
+    } else {
+      throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
+    }
   }
   if (
     bookingResponse.redirected &&

@@ -109,7 +109,7 @@ describe('reserveLabolaYoyogi', () => {
       LOGIN_URL,
       expect.objectContaining({
         method: 'POST',
-        body: 'username=user&password=pass',
+        body: 'membership_code=user&password=pass&member_type_id=397',
       })
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -405,6 +405,50 @@ describe('reserveLabolaYoyogi', () => {
       '希望時間帯は予約不可（カレンダーへリダイレクト）'
     )
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('予約ページ取得が customer-info へ 302 の場合は追従して継続する', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', {
+          status: 302,
+          headers: {
+            location: '/r/customer/member-bookings/',
+            'set-cookie': 'booking-prod=booking-token; Path=/',
+          },
+        })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 302,
+          headers: {
+            location: '/r/booking/rental/shop/3094/customer-info/',
+          },
+        })
+      }
+      if (url === CUSTOMER_INFO_URL && init?.method === 'GET') {
+        return new Response(BOOKING_PAGE_HTML, { status: 200 })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await expect(reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())).resolves.toBe(
+      undefined
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      CUSTOMER_INFO_URL,
+      expect.objectContaining({
+        method: 'GET',
+      })
+    )
   })
 
   it('未ログイン誘導フォームを検出した場合はログイン失敗として中断する', async () => {

@@ -69,11 +69,12 @@ describe('prepareLabolaYoyogiLogin', () => {
 })
 
 describe('buildLabolaYoyogiLoginForm', () => {
-  it('username/password を Django ログイン向けフォームへ変換する', () => {
+  it('membership_code/password/member_type_id を Django ログイン向けフォームへ変換する', () => {
     const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'pass' })
 
-    expect(form.get('username')).toBe('user')
+    expect(form.get('membership_code')).toBe('user')
     expect(form.get('password')).toBe('pass')
+    expect(form.get('member_type_id')).toBe('397')
     expect(form.get('csrfmiddlewaretoken')).toBeNull()
   })
 
@@ -107,12 +108,28 @@ describe('postLabolaYoyogiLogin', () => {
       LOGIN_URL,
       expect.objectContaining({
         method: 'POST',
+        redirect: 'manual',
         headers: expect.objectContaining({
           Cookie: 'csrftoken=csrf-value; sessionid=session-value',
         }),
         body: form.toString(),
       })
     )
+  })
+
+  it('302リダイレクト応答はログイン成功として扱う', async () => {
+    mockFetch(
+      async () =>
+        new Response('', {
+          status: 302,
+          headers: {
+            location: '/r/customer/member-bookings/',
+          },
+        })
+    )
+
+    const form = createLoginForm()
+    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).resolves.toBeInstanceOf(Response)
   })
 
   it('通信エラー時は日本語メッセージで例外を投げる', async () => {
@@ -169,7 +186,7 @@ describe('postLabolaYoyogiLogin', () => {
 })
 
 describe('extractLabolaYoyogiCookieHeader', () => {
-  it('set-cookie から csrftoken と sessionid を抽出して Cookie ヘッダへ変換する', () => {
+  it('set-cookie の先頭cookieペアを抽出して Cookie ヘッダへ変換する', () => {
     const header =
       'csrftoken=csrf-value; Path=/, sessionid=session-value; HttpOnly; Path=/; SameSite=Lax'
 
@@ -178,7 +195,10 @@ describe('extractLabolaYoyogiCookieHeader', () => {
     )
   })
 
-  it('対象cookieが無い場合は undefined を返す', () => {
-    expect(extractLabolaYoyogiCookieHeader('foo=bar; Path=/')).toBeUndefined()
+  it('Expires を含む set-cookie でも壊さず抽出する', () => {
+    const header =
+      'messages=abc; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/, csrftoken=csrf-value; Path=/'
+
+    expect(extractLabolaYoyogiCookieHeader(header)).toBe('messages=abc; csrftoken=csrf-value')
   })
 })
