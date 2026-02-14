@@ -417,6 +417,7 @@ describe('reserveLabolaYoyogi', () => {
   })
 
   it('予約ページ取得が customer-info へ 302 の場合は追従して継続する', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
     const fetchMock = mockFetch(async (url, init) => {
       if (url === LOGIN_URL && init?.method === 'GET') {
         return new Response('', {
@@ -456,6 +457,14 @@ describe('reserveLabolaYoyogi', () => {
       CUSTOMER_INFO_URL,
       expect.objectContaining({
         method: 'GET',
+      })
+    )
+    expect(infoSpy).toHaveBeenCalledWith(
+      '予約ページ取得で customer-info へのリダイレクトを検出しました',
+      expect.objectContaining({
+        id: RESERVE_ID,
+        from: BOOKING_URL,
+        to: CUSTOMER_INFO_URL,
       })
     )
   })

@@ -106,6 +106,13 @@ export const reserveLabolaYoyogi = async (
         throw new Error('予約ページ取得に失敗しました: 302（遷移先なし）')
       }
       const redirectedUrl = new URL(location, bookingUrl).toString()
+      if (redirectedUrl === 'https://labola.jp/r/booking/rental/shop/3094/customer-info/') {
+        console.info('予約ページ取得で customer-info へのリダイレクトを検出しました', {
+          id: reserveId,
+          from: bookingUrl,
+          to: redirectedUrl,
+        })
+      }
       try {
         console.log('Labola HTTP Request', {
           id: reserveId,
