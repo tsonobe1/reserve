@@ -128,20 +128,22 @@ export const reserveLabolaYoyogi = async (
       throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
     }
   }
+  const bookingBodyPreview = await bookingResponse.clone().text()
+  console.log('Labola HTTP Response', {
+    id: reserveId,
+    step: 'booking-page-get',
+    status: bookingResponse.status,
+    redirected: bookingResponse.redirected,
+    url: bookingResponse.url,
+    bodySize: bookingBodyPreview.length,
+    bodyPreview: bookingBodyPreview.slice(0, 300),
+  })
   if (
     bookingResponse.redirected &&
     bookingResponse.url.includes('https://labola.jp/r/shop/3094/calendar/')
   ) {
     throw new Error('希望時間帯は予約不可（カレンダーへリダイレクト）')
   }
-  const bookingBodyPreview = await bookingResponse.clone().text()
-  console.log('Labola HTTP Response', {
-    id: reserveId,
-    step: 'booking-page-get',
-    status: bookingResponse.status,
-    bodySize: bookingBodyPreview.length,
-    bodyPreview: bookingBodyPreview.slice(0, 300),
-  })
   activeCookieHeader = mergeLabolaYoyogiCookieHeader(
     activeCookieHeader,
     bookingResponse.headers.get('set-cookie') ?? undefined

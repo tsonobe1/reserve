@@ -373,6 +373,7 @@ describe('reserveLabolaYoyogi', () => {
   })
 
   it('予約ページ取得がカレンダーへリダイレクトされた場合は中断する', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const fetchMock = mockFetch(async (url, init) => {
       if (url === LOGIN_URL && init?.method === 'GET') {
         return new Response('', {
@@ -405,6 +406,14 @@ describe('reserveLabolaYoyogi', () => {
       '希望時間帯は予約不可（カレンダーへリダイレクト）'
     )
     expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(logSpy).toHaveBeenCalledWith(
+      'Labola HTTP Response',
+      expect.objectContaining({
+        id: RESERVE_ID,
+        step: 'booking-page-get',
+        status: 200,
+      })
+    )
   })
 
   it('予約ページ取得が customer-info へ 302 の場合は追従して継続する', async () => {
