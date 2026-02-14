@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  reserveLabolaYoyogi,
-  toLabolaYoyogiCourtNo,
-} from '../../../src/reserve/service/reserve-labola-yoyogi'
+  executeLabolaYoyogiReservation,
+  mapLabolaYoyogiCourtNo,
+} from '../../../src/reserve/service/labola-yoyogi/reservation'
 
 const RESERVE_ID = 'reserve-id-1'
 const VALID_ENV = {
@@ -55,7 +55,9 @@ const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   return fetchMock
 }
 
-const createParams = (overrides?: Partial<Parameters<typeof reserveLabolaYoyogi>[2]>) => ({
+const createParams = (
+  overrides?: Partial<Parameters<typeof executeLabolaYoyogiReservation>[2]>
+) => ({
   facilityId: 1,
   courtNo: 1,
   date: '2026-02-20',
@@ -64,21 +66,21 @@ const createParams = (overrides?: Partial<Parameters<typeof reserveLabolaYoyogi>
   ...overrides,
 })
 
-describe('toLabolaYoyogiCourtNo', () => {
+describe('mapLabolaYoyogiCourtNo', () => {
   it('UIのコート番号 1-4 をサイト用の値へ変換する', () => {
-    expect(toLabolaYoyogiCourtNo(1)).toBe('479')
-    expect(toLabolaYoyogiCourtNo(2)).toBe('510')
-    expect(toLabolaYoyogiCourtNo(3)).toBe('511')
-    expect(toLabolaYoyogiCourtNo(4)).toBe('535')
+    expect(mapLabolaYoyogiCourtNo(1)).toBe('479')
+    expect(mapLabolaYoyogiCourtNo(2)).toBe('510')
+    expect(mapLabolaYoyogiCourtNo(3)).toBe('511')
+    expect(mapLabolaYoyogiCourtNo(4)).toBe('535')
   })
 
   it('非対応のコート番号は undefined を返す', () => {
-    expect(toLabolaYoyogiCourtNo(0)).toBeUndefined()
-    expect(toLabolaYoyogiCourtNo(5)).toBeUndefined()
+    expect(mapLabolaYoyogiCourtNo(0)).toBeUndefined()
+    expect(mapLabolaYoyogiCourtNo(5)).toBeUndefined()
   })
 })
 
-describe('reserveLabolaYoyogi', () => {
+describe('executeLabolaYoyogiReservation', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -96,7 +98,7 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+    await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -134,7 +136,7 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+    await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -162,7 +164,7 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+    await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
@@ -197,7 +199,7 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+    await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
@@ -224,7 +226,7 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())
+    await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))).toBe(
@@ -248,7 +250,7 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
+    await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -273,7 +275,7 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
+    await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(
@@ -284,7 +286,7 @@ describe('reserveLabolaYoyogi', () => {
   it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {
     const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
-    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams({ facilityId: 2 }))
+    await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams({ facilityId: 2 }))
 
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -292,7 +294,7 @@ describe('reserveLabolaYoyogi', () => {
   it('非対応の courtNo ならスキップして fetch を呼ばない', async () => {
     const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
-    await reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams({ courtNo: 9 }))
+    await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams({ courtNo: 9 }))
 
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -316,9 +318,9 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
-      '予約ページ取得に失敗しました: 500'
-    )
+    await expect(
+      executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
+    ).rejects.toThrow('予約ページ取得に失敗しました: 500')
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
@@ -341,9 +343,9 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
-      '予約ページ取得中に通信エラーが発生しました'
-    )
+    await expect(
+      executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
+    ).rejects.toThrow('予約ページ取得中に通信エラーが発生しました')
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
@@ -366,9 +368,9 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
-      '希望時間帯は予約不可（すでに予約済み）'
-    )
+    await expect(
+      executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
+    ).rejects.toThrow('希望時間帯は予約不可（すでに予約済み）')
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
@@ -402,9 +404,9 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
-      '希望時間帯は予約不可（カレンダーへリダイレクト）'
-    )
+    await expect(
+      executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
+    ).rejects.toThrow('希望時間帯は予約不可（カレンダーへリダイレクト）')
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(logSpy).toHaveBeenCalledWith(
       'Labola HTTP Response',
@@ -450,9 +452,9 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await expect(reserveLabolaYoyogi(ENV_WITH_FALLBACK, RESERVE_ID, createParams())).resolves.toBe(
-      undefined
-    )
+    await expect(
+      executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
+    ).resolves.toBe(undefined)
     expect(fetchMock).toHaveBeenCalledWith(
       CUSTOMER_INFO_URL,
       expect.objectContaining({
@@ -489,9 +491,9 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
-      '予約ページ取得に失敗しました: 302（遷移先なし）'
-    )
+    await expect(
+      executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
+    ).rejects.toThrow('予約ページ取得に失敗しました: 302（遷移先なし）')
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(logSpy).toHaveBeenCalledWith(
       'Labola HTTP Response',
@@ -523,12 +525,12 @@ describe('reserveLabolaYoyogi', () => {
       return new Response('', { status: 200 })
     })
 
-    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
-      'ログインに失敗しました: IDまたはパスワードを確認してください'
-    )
+    await expect(
+      executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
+    ).rejects.toThrow('ログインに失敗しました: IDまたはパスワードを確認してください')
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(
-      fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))
-    ).toBe(false)
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))).toBe(
+      false
+    )
   })
 })

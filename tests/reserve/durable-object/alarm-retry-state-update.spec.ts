@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test'
 
-vi.mock('../../../src/reserve/service/reserve-labola-yoyogi', () => {
+vi.mock('../../../src/reserve/service/labola-yoyogi/reservation', () => {
   return {
-    reserveLabolaYoyogi: vi.fn(async () => {
+    executeLabolaYoyogiReservation: vi.fn(async () => {
       throw new Error('ログインPOST中に通信エラーが発生しました')
     }),
   }

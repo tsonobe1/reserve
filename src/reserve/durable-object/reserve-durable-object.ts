@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import { ReserveParamsSchema } from '../domain/reserve-request-schema'
-import { reserveLabolaYoyogi } from '../service/reserve-labola-yoyogi'
+import { executeLabolaYoyogiReservation } from '../service/labola-yoyogi/reservation'
 import { updateStatusByDoId } from '../repository/reserve'
 
 const LABOLA_RETRY_BUDGET_MS = 12 * 60 * 1000
@@ -151,7 +151,7 @@ export class ReserveDurableObject extends DurableObject {
       params: reserveParams,
     })
     try {
-      await reserveLabolaYoyogi(this.env, this.ctx.id.toString(), reserveParams)
+      await executeLabolaYoyogiReservation(this.env, this.ctx.id.toString(), reserveParams)
       await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'done')
       if (retryState) {
         await this.ctx.storage.delete('retry_state')

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi'
+import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi/client'
 
-describe('buildLabolaYoyogiBookingUrl', () => {
+describe('buildBookingUrl', () => {
   it('コート番号・日付・開始/終了時刻から予約URLを組み立てる', () => {
-    const buildBookingUrl = (labolaYoyogi as Record<string, unknown>)
-      .buildLabolaYoyogiBookingUrl as
+    const buildBookingUrl = (labolaYoyogi as Record<string, unknown>).buildBookingUrl as
       | ((siteCourtNo: string, date: string, startTime: string, endTime: string) => string)
       | undefined
 

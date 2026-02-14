@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  buildLabolaYoyogiLoginForm,
-  extractLabolaYoyogiCookieHeader,
-  postLabolaYoyogiLogin,
-  prepareLabolaYoyogiLogin,
-} from '../../../src/reserve/service/labola-yoyogi'
+  buildLoginForm,
+  extractCookieHeader,
+  postLogin,
+  prepareLogin,
+} from '../../../src/reserve/service/labola-yoyogi/client'
 
 const RESERVE_ID = 'reserve-id-1'
 const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
@@ -20,22 +20,22 @@ const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
 }
 
 const createLoginForm = (password = 'pass') =>
-  buildLabolaYoyogiLoginForm({ username: VALID_ENV.LABOLA_YOYOGI_USERNAME, password })
+  buildLoginForm({ username: VALID_ENV.LABOLA_YOYOGI_USERNAME, password })
 
-describe('prepareLabolaYoyogiLogin', () => {
+describe('prepareLogin', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
   it('認証情報が不足している場合は例外を投げる', async () => {
-    await expect(
-      prepareLabolaYoyogiLogin({ LABOLA_YOYOGI_USERNAME: 'user' }, RESERVE_ID)
-    ).rejects.toThrow('LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です')
+    await expect(prepareLogin({ LABOLA_YOYOGI_USERNAME: 'user' }, RESERVE_ID)).rejects.toThrow(
+      'LABOLA_YOYOGI_USERNAME / LABOLA_YOYOGI_PASSWORD が未設定です'
+    )
   })
 
   it('ログインページ取得が成功したら username/password を返す', async () => {
     mockFetch(async () => new Response('', { status: 200 }))
-    await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
+    await expect(prepareLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
       username: 'user',
       password: 'pass',
       csrfMiddlewareToken: undefined,
@@ -50,7 +50,7 @@ describe('prepareLabolaYoyogiLogin', () => {
           status: 200,
         })
     )
-    await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
+    await expect(prepareLogin(VALID_ENV, RESERVE_ID)).resolves.toStrictEqual({
       username: 'user',
       password: 'pass',
       csrfMiddlewareToken: 'csrf-token-123',
@@ -62,15 +62,15 @@ describe('prepareLabolaYoyogiLogin', () => {
     mockFetch(async () => {
       throw new Error('network down')
     })
-    await expect(prepareLabolaYoyogiLogin(VALID_ENV, RESERVE_ID)).rejects.toThrow(
+    await expect(prepareLogin(VALID_ENV, RESERVE_ID)).rejects.toThrow(
       'ログインページ取得中に通信エラーが発生しました'
     )
   })
 })
 
-describe('buildLabolaYoyogiLoginForm', () => {
+describe('buildLoginForm', () => {
   it('membership_code/password/member_type_id を Django ログイン向けフォームへ変換する', () => {
-    const form = buildLabolaYoyogiLoginForm({ username: 'user', password: 'pass' })
+    const form = buildLoginForm({ username: 'user', password: 'pass' })
 
     expect(form.get('membership_code')).toBe('user')
     expect(form.get('password')).toBe('pass')
@@ -79,7 +79,7 @@ describe('buildLabolaYoyogiLoginForm', () => {
   })
 
   it('csrfmiddlewaretoken がある場合はフォームへ含める', () => {
-    const form = buildLabolaYoyogiLoginForm({
+    const form = buildLoginForm({
       username: 'user',
       password: 'pass',
       csrfMiddlewareToken: 'csrf-token-123',
@@ -89,7 +89,7 @@ describe('buildLabolaYoyogiLoginForm', () => {
   })
 })
 
-describe('postLabolaYoyogiLogin', () => {
+describe('postLogin', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -98,7 +98,7 @@ describe('postLabolaYoyogiLogin', () => {
     const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
 
     const form = createLoginForm()
-    await postLabolaYoyogiLogin(RESERVE_ID, form, 'csrftoken=csrf-value; sessionid=session-value')
+    await postLogin(RESERVE_ID, form, 'csrftoken=csrf-value; sessionid=session-value')
 
     // ログインPOSTが1回だけ送信されることを確認する。
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -129,7 +129,7 @@ describe('postLabolaYoyogiLogin', () => {
     )
 
     const form = createLoginForm()
-    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).resolves.toBeInstanceOf(Response)
+    await expect(postLogin(RESERVE_ID, form)).resolves.toBeInstanceOf(Response)
   })
 
   it('通信エラー時は日本語メッセージで例外を投げる', async () => {
@@ -138,7 +138,7 @@ describe('postLabolaYoyogiLogin', () => {
     })
 
     const form = createLoginForm()
-    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
+    await expect(postLogin(RESERVE_ID, form)).rejects.toThrow(
       'ログインPOST中に通信エラーが発生しました'
     )
   })
@@ -147,16 +147,14 @@ describe('postLabolaYoyogiLogin', () => {
     mockFetch(async () => new Response('', { status: 400 }))
 
     const form = createLoginForm()
-    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
-      'ログインPOSTに失敗しました: 400'
-    )
+    await expect(postLogin(RESERVE_ID, form)).rejects.toThrow('ログインPOSTに失敗しました: 400')
   })
 
   it('5xxのHTTPエラー時は相手側サーバ障害として例外を投げる', async () => {
     mockFetch(async () => new Response('', { status: 503 }))
 
     const form = createLoginForm()
-    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
+    await expect(postLogin(RESERVE_ID, form)).rejects.toThrow(
       '相手側サーバ障害のためログインできませんでした'
     )
   })
@@ -165,7 +163,7 @@ describe('postLabolaYoyogiLogin', () => {
     mockFetch(async () => new Response('会員IDまたはパスワードが正しくありません', { status: 200 }))
 
     const form = createLoginForm('wrong-pass')
-    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
+    await expect(postLogin(RESERVE_ID, form)).rejects.toThrow(
       'ログインに失敗しました: IDまたはパスワードを確認してください'
     )
   })
@@ -173,32 +171,33 @@ describe('postLabolaYoyogiLogin', () => {
   it('200でもログイン画面タイトルのままなら例外を投げる', async () => {
     mockFetch(
       async () =>
-        new Response('<title>国立代々木競技場フットサルコート｜メンバーログイン - LaBOLA総合予約</title>', {
-          status: 200,
-        })
+        new Response(
+          '<title>国立代々木競技場フットサルコート｜メンバーログイン - LaBOLA総合予約</title>',
+          {
+            status: 200,
+          }
+        )
     )
 
     const form = createLoginForm()
-    await expect(postLabolaYoyogiLogin(RESERVE_ID, form)).rejects.toThrow(
+    await expect(postLogin(RESERVE_ID, form)).rejects.toThrow(
       'ログインに失敗しました: IDまたはパスワードを確認してください'
     )
   })
 })
 
-describe('extractLabolaYoyogiCookieHeader', () => {
+describe('extractCookieHeader', () => {
   it('set-cookie の先頭cookieペアを抽出して Cookie ヘッダへ変換する', () => {
     const header =
       'csrftoken=csrf-value; Path=/, sessionid=session-value; HttpOnly; Path=/; SameSite=Lax'
 
-    expect(extractLabolaYoyogiCookieHeader(header)).toBe(
-      'csrftoken=csrf-value; sessionid=session-value'
-    )
+    expect(extractCookieHeader(header)).toBe('csrftoken=csrf-value; sessionid=session-value')
   })
 
   it('Expires を含む set-cookie でも壊さず抽出する', () => {
     const header =
       'messages=abc; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/, csrftoken=csrf-value; Path=/'
 
-    expect(extractLabolaYoyogiCookieHeader(header)).toBe('messages=abc; csrftoken=csrf-value')
+    expect(extractCookieHeader(header)).toBe('messages=abc; csrftoken=csrf-value')
   })
 })

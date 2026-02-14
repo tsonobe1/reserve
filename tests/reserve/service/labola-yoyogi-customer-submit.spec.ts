@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi'
+import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi/client'
 
 const RESERVE_ID = 'reserve-id-1'
 const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
@@ -11,14 +11,13 @@ const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   return fetchMock
 }
 
-describe('submitLabolaYoyogiCustomerForms', () => {
+describe('submitCustomerForms', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
   it('customer-info POST の後に customer-confirm POST を送信する', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -71,8 +70,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('skipFinalSubmit=true の場合は customer-confirm POST を送信しない', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -105,8 +103,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('Cookieヘッダが無い場合は送信せず例外を投げる', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -126,8 +123,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('customer-confirm が 500 の場合は例外を投げる', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -156,8 +152,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('customer-info が 500 の場合は例外を投げる', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -186,8 +181,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('customer-info 送信中に通信エラーが発生した場合は例外を投げる', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -216,8 +210,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('customer-info がカレンダーへリダイレクトされた場合は予約済みとして中断する', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -256,8 +249,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('customer-info の messages Cookie に予約済み文言がある場合は中断する', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -292,8 +284,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('customer-info が200でもカレンダー画面HTMLを返した場合は中断する', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,
@@ -325,8 +316,7 @@ describe('submitLabolaYoyogiCustomerForms', () => {
   })
 
   it('customer-confirm 送信中に通信エラーが発生した場合は例外を投げる', async () => {
-    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>)
-      .submitLabolaYoyogiCustomerForms as
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
           reserveId: string,
           customerInfoForm: URLSearchParams,

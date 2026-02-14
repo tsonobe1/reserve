@@ -1,4 +1,4 @@
-export type LabolaYoyogiEnv = {
+export type LabolaYoyogiClientEnv = {
   LABOLA_YOYOGI_USERNAME?: string
   LABOLA_YOYOGI_PASSWORD?: string
 }
@@ -51,7 +51,9 @@ const toCookieSummary = (cookieHeader?: string): string => {
     .join(', ')
 }
 
-const safeResponsePreview = async (response: Response): Promise<{ bodySize: number; preview: string }> => {
+const safeResponsePreview = async (
+  response: Response
+): Promise<{ bodySize: number; preview: string }> => {
   try {
     const body = await response.clone().text()
     return {
@@ -63,7 +65,7 @@ const safeResponsePreview = async (response: Response): Promise<{ bodySize: numb
   }
 }
 
-export const buildLabolaYoyogiLoginForm = (credentials: {
+export const buildLoginForm = (credentials: {
   username: string
   password: string
   csrfMiddlewareToken?: string
@@ -79,7 +81,7 @@ export const buildLabolaYoyogiLoginForm = (credentials: {
   return form
 }
 
-export const extractLabolaYoyogiCookieHeader = (setCookieHeader: string): string | undefined => {
+export const extractCookieHeader = (setCookieHeader: string): string | undefined => {
   const setCookies = setCookieHeader.split(/,(?=\s*[A-Za-z0-9!#$%&'*+.^_`|~-]+=)/)
   const cookiePairs = setCookies
     .map((cookie) => cookie.trim().split(';')[0]?.trim())
@@ -91,11 +93,11 @@ export const extractLabolaYoyogiCookieHeader = (setCookieHeader: string): string
   return cookiePairs.join('; ')
 }
 
-export const mergeLabolaYoyogiCookieHeader = (
+export const mergeCookieHeader = (
   currentCookieHeader: string | undefined,
   setCookieHeader: string | undefined
 ): string | undefined => {
-  const extracted = setCookieHeader ? extractLabolaYoyogiCookieHeader(setCookieHeader) : undefined
+  const extracted = setCookieHeader ? extractCookieHeader(setCookieHeader) : undefined
   if (!currentCookieHeader) {
     return extracted
   }
@@ -120,7 +122,7 @@ export const mergeLabolaYoyogiCookieHeader = (
     .join('; ')
 }
 
-export const postLabolaYoyogiLogin = async (
+export const postLogin = async (
   reserveId: string,
   form: URLSearchParams,
   cookieHeader?: string
@@ -203,8 +205,8 @@ export const postLabolaYoyogiLogin = async (
   }
 }
 
-export const prepareLabolaYoyogiLogin = async (
-  env: LabolaYoyogiEnv,
+export const prepareLogin = async (
+  env: LabolaYoyogiClientEnv,
   reserveId: string
 ): Promise<{
   username: string
@@ -257,7 +259,7 @@ export const prepareLabolaYoyogiLogin = async (
     status: loginPageResponse.status,
   })
   const loginPageHtml = await loginPageResponse.text()
-  const csrfMiddlewareToken = extractLabolaYoyogiFormValues(loginPageHtml).csrfmiddlewaretoken
+  const csrfMiddlewareToken = extractFormValues(loginPageHtml).csrfmiddlewaretoken
   console.log('LabolaログインページのCSRFトークン抽出結果', {
     id: reserveId,
     hasCsrfMiddlewareToken: Boolean(csrfMiddlewareToken),
@@ -271,7 +273,7 @@ export const prepareLabolaYoyogiLogin = async (
   }
 }
 
-export const buildLabolaYoyogiBookingUrl = (
+export const buildBookingUrl = (
   siteCourtNo: string,
   date: string,
   startTime: string,
@@ -283,7 +285,7 @@ export const buildLabolaYoyogiBookingUrl = (
   return `https://labola.jp/r/booking/rental/shop/3094/facility/${siteCourtNo}/${compactDate}-${compactStart}-${compactEnd}/customer-type/`
 }
 
-export const extractLabolaYoyogiFormValues = (html: string): Record<string, string> => {
+export const extractFormValues = (html: string): Record<string, string> => {
   const values: Record<string, string> = {}
   const readAttr = (tag: string, attr: string): string | undefined => {
     const matched = tag.match(new RegExp(`\\b${attr}=(?:\"([^\"]*)\"|'([^']*)')`, 'i'))
@@ -339,7 +341,7 @@ export const extractLabolaYoyogiFormValues = (html: string): Record<string, stri
   return values
 }
 
-type LabolaYoyogiCustomerInfoFallbackEnv = {
+type CustomerInfoFallbackEnv = {
   LABOLA_YOYOGI_NAME?: string
   LABOLA_YOYOGI_DISPLAY_NAME?: string
   LABOLA_YOYOGI_EMAIL?: string
@@ -347,9 +349,9 @@ type LabolaYoyogiCustomerInfoFallbackEnv = {
   LABOLA_YOYOGI_MOBILE_NUMBER?: string
 }
 
-export const fillLabolaYoyogiCustomerInfoRequiredValues = (
+export const fillCustomerInfoRequiredValues = (
   values: Record<string, string>,
-  env: LabolaYoyogiCustomerInfoFallbackEnv
+  env: CustomerInfoFallbackEnv
 ): Record<string, string> => {
   const filled = { ...values }
 
@@ -375,7 +377,7 @@ export const fillLabolaYoyogiCustomerInfoRequiredValues = (
   return filled
 }
 
-const mergeLabolaYoyogiFormValues = (
+const mergeFormValues = (
   defaults: Record<string, string>,
   overrides: URLSearchParams
 ): URLSearchParams => {
@@ -389,7 +391,7 @@ const mergeLabolaYoyogiFormValues = (
   return merged
 }
 
-const ensureLabolaYoyogiPostSuccess = (
+const ensurePostSuccess = (
   response: Response,
   action: 'customer-info' | 'customer-confirm'
 ): void => {
@@ -398,7 +400,7 @@ const ensureLabolaYoyogiPostSuccess = (
   }
 }
 
-export const submitLabolaYoyogiCustomerForms = async (
+export const submitCustomerForms = async (
   reserveId: string,
   customerInfoForm: URLSearchParams,
   customerConfirmForm: URLSearchParams,
@@ -448,7 +450,7 @@ export const submitLabolaYoyogiCustomerForms = async (
     bodySize: customerInfoPreview.bodySize,
     bodyPreview: customerInfoPreview.preview,
   })
-  ensureLabolaYoyogiPostSuccess(customerInfoResponse, 'customer-info')
+  ensurePostSuccess(customerInfoResponse, 'customer-info')
   if (
     (customerInfoResponse.redirected &&
       customerInfoResponse.url.includes('https://labola.jp/r/shop/3094/calendar/')) ||
@@ -460,11 +462,8 @@ export const submitLabolaYoyogiCustomerForms = async (
   ) {
     throw new Error('希望時間帯は予約不可（すでに予約済み）')
   }
-  const customerConfirmDefaults = extractLabolaYoyogiFormValues(await customerInfoResponse.text())
-  const mergedCustomerConfirmForm = mergeLabolaYoyogiFormValues(
-    customerConfirmDefaults,
-    customerConfirmForm
-  )
+  const customerConfirmDefaults = extractFormValues(await customerInfoResponse.text())
+  const mergedCustomerConfirmForm = mergeFormValues(customerConfirmDefaults, customerConfirmForm)
   if (options?.skipFinalSubmit) {
     console.log('Dry run: customer-confirm最終送信をスキップします', {
       id: reserveId,
@@ -499,17 +498,17 @@ export const submitLabolaYoyogiCustomerForms = async (
     bodySize: customerConfirmPreview.bodySize,
     bodyPreview: customerConfirmPreview.preview,
   })
-  ensureLabolaYoyogiPostSuccess(customerConfirmResponse, 'customer-confirm')
+  ensurePostSuccess(customerConfirmResponse, 'customer-confirm')
 }
 
-const isLabolaYoyogiCustomerPost5xxError = (message: string): boolean => {
+const isCustomerPost5xxError = (message: string): boolean => {
   return /^customer-(?:info|confirm) 送信に失敗しました: 5\d\d$/.test(message)
 }
 
-export const shouldRetryLabolaYoyogiError = (error: Error): boolean => {
+export const shouldRetryError = (error: Error): boolean => {
   return (
     error.message.includes('相手側サーバ障害') ||
     error.message.includes('通信エラーが発生しました') ||
-    isLabolaYoyogiCustomerPost5xxError(error.message)
+    isCustomerPost5xxError(error.message)
   )
 }

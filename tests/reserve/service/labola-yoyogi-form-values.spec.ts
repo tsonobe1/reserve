@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi'
+import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi/client'
 
 const CUSTOMER_INFO_HTML = `
 <form method="post">
@@ -22,10 +22,11 @@ const CUSTOMER_INFO_HTML = `
 </form>
 `
 
-describe('extractLabolaYoyogiFormValues', () => {
+describe('extractFormValues', () => {
   it('customer-info の既定フォーム値を抽出できる', () => {
-    const extractFormValues = (labolaYoyogi as Record<string, unknown>)
-      .extractLabolaYoyogiFormValues as ((html: string) => Record<string, string>) | undefined
+    const extractFormValues = (labolaYoyogi as Record<string, unknown>).extractFormValues as
+      | ((html: string) => Record<string, string>)
+      | undefined
 
     expect(extractFormValues).toBeTypeOf('function')
     expect(extractFormValues?.(CUSTOMER_INFO_HTML)).toStrictEqual({

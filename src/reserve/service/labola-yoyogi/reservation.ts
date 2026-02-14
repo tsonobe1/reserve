@@ -1,16 +1,16 @@
-import type { ReserveParams } from '../domain/reserve-request-schema'
+import type { ReserveParams } from '../../domain/reserve-request-schema'
 import {
-  buildLabolaYoyogiBookingUrl,
-  buildLabolaYoyogiLoginForm,
-  extractLabolaYoyogiFormValues,
-  extractLabolaYoyogiCookieHeader,
-  fillLabolaYoyogiCustomerInfoRequiredValues,
-  mergeLabolaYoyogiCookieHeader,
-  postLabolaYoyogiLogin,
-  prepareLabolaYoyogiLogin,
-  submitLabolaYoyogiCustomerForms,
-  type LabolaYoyogiEnv,
-} from './labola-yoyogi'
+  buildBookingUrl,
+  buildLoginForm,
+  extractFormValues,
+  extractCookieHeader,
+  fillCustomerInfoRequiredValues,
+  mergeCookieHeader,
+  postLogin,
+  prepareLogin,
+  submitCustomerForms,
+  type LabolaYoyogiClientEnv,
+} from './client'
 
 const YOYOGI_UI_TO_SITE_COURT_NO_MAP: Record<number, string> = {
   1: '479',
@@ -19,12 +19,12 @@ const YOYOGI_UI_TO_SITE_COURT_NO_MAP: Record<number, string> = {
   4: '535',
 }
 
-export const toLabolaYoyogiCourtNo = (uiCourtNo: number): string | undefined => {
+export const mapLabolaYoyogiCourtNo = (uiCourtNo: number): string | undefined => {
   return YOYOGI_UI_TO_SITE_COURT_NO_MAP[uiCourtNo]
 }
 
-export const reserveLabolaYoyogi = async (
-  env: LabolaYoyogiEnv,
+export const executeLabolaYoyogiReservation = async (
+  env: LabolaYoyogiClientEnv,
   reserveId: string,
   params: ReserveParams
 ): Promise<void> => {
@@ -36,7 +36,7 @@ export const reserveLabolaYoyogi = async (
     return
   }
 
-  const siteCourtNo = toLabolaYoyogiCourtNo(params.courtNo)
+  const siteCourtNo = mapLabolaYoyogiCourtNo(params.courtNo)
   if (!siteCourtNo) {
     console.info('Skip reserve: 非対応コート番号', {
       id: reserveId,
@@ -45,22 +45,17 @@ export const reserveLabolaYoyogi = async (
     return
   }
 
-  const credentials = await prepareLabolaYoyogiLogin(env, reserveId)
-  const loginForm = buildLabolaYoyogiLoginForm(credentials)
+  const credentials = await prepareLogin(env, reserveId)
+  const loginForm = buildLoginForm(credentials)
   let activeCookieHeader = credentials.loginSetCookieHeader
-    ? extractLabolaYoyogiCookieHeader(credentials.loginSetCookieHeader)
+    ? extractCookieHeader(credentials.loginSetCookieHeader)
     : undefined
-  const loginResponse = await postLabolaYoyogiLogin(reserveId, loginForm, activeCookieHeader)
-  activeCookieHeader = mergeLabolaYoyogiCookieHeader(
+  const loginResponse = await postLogin(reserveId, loginForm, activeCookieHeader)
+  activeCookieHeader = mergeCookieHeader(
     activeCookieHeader,
     loginResponse.headers.get('set-cookie') ?? undefined
   )
-  const bookingUrl = buildLabolaYoyogiBookingUrl(
-    siteCourtNo,
-    params.date,
-    params.startTime,
-    params.endTime
-  )
+  const bookingUrl = buildBookingUrl(siteCourtNo, params.date, params.startTime, params.endTime)
   let bookingResponse: Response
   try {
     console.log('Labola HTTP Request', {
@@ -162,7 +157,7 @@ export const reserveLabolaYoyogi = async (
   ) {
     throw new Error('希望時間帯は予約不可（カレンダーへリダイレクト）')
   }
-  activeCookieHeader = mergeLabolaYoyogiCookieHeader(
+  activeCookieHeader = mergeCookieHeader(
     activeCookieHeader,
     bookingResponse.headers.get('set-cookie') ?? undefined
   )
@@ -170,14 +165,11 @@ export const reserveLabolaYoyogi = async (
   if (bookingPageHtml.includes('すでに予約済みです')) {
     throw new Error('希望時間帯は予約不可（すでに予約済み）')
   }
-  const extractedCustomerInfoValues = extractLabolaYoyogiFormValues(bookingPageHtml)
+  const extractedCustomerInfoValues = extractFormValues(bookingPageHtml)
   if ((extractedCustomerInfoValues.submit_member ?? '').includes('ログインして予約')) {
     throw new Error('ログインに失敗しました: IDまたはパスワードを確認してください')
   }
-  const filledCustomerInfoValues = fillLabolaYoyogiCustomerInfoRequiredValues(
-    extractedCustomerInfoValues,
-    env
-  )
+  const filledCustomerInfoValues = fillCustomerInfoRequiredValues(extractedCustomerInfoValues, env)
   filledCustomerInfoValues.hold_on_at = params.date
   filledCustomerInfoValues.start = params.startTime.replace(':', '')
   filledCustomerInfoValues.end = params.endTime.replace(':', '')
@@ -198,11 +190,7 @@ export const reserveLabolaYoyogi = async (
     customerInfoKeys: Array.from(customerInfoForm.keys()),
     customerConfirmKeys: Array.from(customerConfirmForm.keys()),
   })
-  await submitLabolaYoyogiCustomerForms(
-    reserveId,
-    customerInfoForm,
-    customerConfirmForm,
-    activeCookieHeader,
-    { skipFinalSubmit: true }
-  )
+  await submitCustomerForms(reserveId, customerInfoForm, customerConfirmForm, activeCookieHeader, {
+    skipFinalSubmit: true,
+  })
 }

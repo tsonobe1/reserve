@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi'
+import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi/client'
 
-describe('fillLabolaYoyogiCustomerInfoRequiredValues', () => {
+describe('fillCustomerInfoRequiredValues', () => {
   it('必須項目が空欄の場合は環境変数で補完する', () => {
     const fillRequiredValues = (labolaYoyogi as Record<string, unknown>)
-      .fillLabolaYoyogiCustomerInfoRequiredValues as
+      .fillCustomerInfoRequiredValues as
       | ((values: Record<string, string>, env: Record<string, string>) => Record<string, string>)
       | undefined
 

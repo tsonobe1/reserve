@@ -7,13 +7,17 @@ describe('shouldIncrementRetryState', () => {
       .shouldIncrementRetryState as ((error: Error) => boolean) | undefined
 
     expect(shouldIncrementRetryState).toBeTypeOf('function')
-    expect(shouldIncrementRetryState?.(new Error('相手側サーバ障害のためログインできませんでした'))).toBe(
-      true
-    )
+    expect(
+      shouldIncrementRetryState?.(new Error('相手側サーバ障害のためログインできませんでした'))
+    ).toBe(true)
     expect(shouldIncrementRetryState?.(new Error('ログインPOST中に通信エラーが発生しました'))).toBe(
       true
     )
-    expect(shouldIncrementRetryState?.(new Error('ログインに失敗しました: IDまたはパスワードを確認してください'))).toBe(false)
+    expect(
+      shouldIncrementRetryState?.(
+        new Error('ログインに失敗しました: IDまたはパスワードを確認してください')
+      )
+    ).toBe(false)
     expect(shouldIncrementRetryState?.(new Error('ログインPOSTに失敗しました: 400'))).toBe(false)
   })
 })
