@@ -27,12 +27,21 @@ describe('ReserveDurableObject.alarm retry connection', () => {
 
     await runDurableObjectAlarm(stub)
 
-    const alarmAt = await runInDurableObject(stub, async (_instance, state) => {
-      return state.storage.getAlarm()
+    const { alarmAt, retryState } = await runInDurableObject(stub, async (_instance, state) => {
+      const alarmAt = await state.storage.getAlarm()
+      const retryState = await state.storage.get<{ attempt: number; alarmStartedAt: number }>(
+        'retry_state'
+      )
+      return { alarmAt, retryState }
     })
 
     expect(alarmAt).not.toBeNull()
     expect(alarmAt).toBeGreaterThanOrEqual(now + 15_000)
     expect(alarmAt).toBeLessThanOrEqual(now + 20_000)
+    expect(retryState).toStrictEqual({
+      attempt: 0,
+      alarmStartedAt: expect.any(Number),
+    })
+    expect((retryState as { alarmStartedAt: number }).alarmStartedAt).toBeGreaterThanOrEqual(now)
   })
 })

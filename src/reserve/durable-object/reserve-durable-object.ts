@@ -12,9 +12,15 @@ type RetryState = {
   alarmStartedAt: number
 }
 
+const isCustomerForm5xxError = (message: string): boolean => {
+  return /^customer-(?:info|confirm) 送信に失敗しました: 5\d\d$/.test(message)
+}
+
 export const shouldIncrementRetryState = (error: Error): boolean => {
   return (
-    error.message.includes('相手側サーバ障害') || error.message.includes('通信エラーが発生しました')
+    error.message.includes('相手側サーバ障害') ||
+    error.message.includes('通信エラーが発生しました') ||
+    isCustomerForm5xxError(error.message)
   )
 }
 
@@ -68,7 +74,10 @@ export const updateRetryStateOnRetryableError = async (
 }
 
 export const scheduleNextAlarmWhenRetryBudgetExceeded = async (
-  storage: { setAlarm: (time: number) => Promise<void> },
+  storage: {
+    put: (key: string, value: unknown) => Promise<void>
+    setAlarm: (time: number) => Promise<void>
+  },
   alarmStartedAt: number,
   attempt: number,
   now: number
@@ -81,6 +90,11 @@ export const scheduleNextAlarmWhenRetryBudgetExceeded = async (
     return false
   }
 
+  // 次の alarm へ引き継ぐ際は、以後の実行で再試行処理に進めるよう retry_state を初期化する。
+  await storage.put('retry_state', {
+    attempt: 0,
+    alarmStartedAt: now,
+  })
   await storage.setAlarm(now + LABOLA_RETRY_NEXT_ALARM_DELAY_MS)
   return true
 }
