@@ -147,7 +147,11 @@ export class ReserveDurableObject extends DurableObject {
     const params = await this.ctx.storage.get('params')
     const parsed = ReserveParamsSchema.safeParse(params)
     if (!parsed.success) {
-      console.warn('Skip reserve: params が不正です', { id: this.ctx.id.toString(), params })
+      await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'fail')
+      console.warn('予約パラメータ不正のため fail で終了します', {
+        id: this.ctx.id.toString(),
+        params,
+      })
       return
     }
     const reserveParams = parsed.data
@@ -187,7 +191,12 @@ export class ReserveDurableObject extends DurableObject {
           Date.now()
         )
         if (!handled) {
-          throw error
+          await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'fail')
+          console.info('非再試行エラーのため fail で終了します', {
+            id: this.ctx.id.toString(),
+            error: error.message,
+          })
+          return
         }
         const nextRetryState = buildNextRetryState(retryState, Date.now())
         console.warn('予約処理で再試行対象エラーが発生したため、次のalarmを設定します', {
