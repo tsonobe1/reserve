@@ -460,6 +460,41 @@ describe('reserveLabolaYoyogi', () => {
     )
   })
 
+  it('予約ページ取得が302でlocation欠落の場合はログを出して中断する', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', { status: 200 })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return new Response('', { status: 302 })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await expect(reserveLabolaYoyogi(VALID_ENV, RESERVE_ID, createParams())).rejects.toThrow(
+      '予約ページ取得に失敗しました: 302（遷移先なし）'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(logSpy).toHaveBeenCalledWith(
+      'Labola HTTP Response',
+      expect.objectContaining({
+        id: RESERVE_ID,
+        step: 'booking-page-get',
+        status: 302,
+        location: undefined,
+      })
+    )
+  })
+
   it('未ログイン誘導フォームを検出した場合はログイン失敗として中断する', async () => {
     const fetchMock = mockFetch(async (url, init) => {
       if (url === LOGIN_URL && init?.method === 'GET') {

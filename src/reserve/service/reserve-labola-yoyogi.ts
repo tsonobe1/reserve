@@ -91,6 +91,17 @@ export const reserveLabolaYoyogi = async (
   if (!bookingResponse.ok) {
     if (bookingResponse.status >= 300 && bookingResponse.status < 400) {
       const location = bookingResponse.headers.get('location')
+      const bookingRedirectPreview = await bookingResponse.clone().text()
+      console.log('Labola HTTP Response', {
+        id: reserveId,
+        step: 'booking-page-get',
+        status: bookingResponse.status,
+        location: location ?? undefined,
+        redirected: bookingResponse.redirected,
+        url: bookingResponse.url,
+        bodySize: bookingRedirectPreview.length,
+        bodyPreview: bookingRedirectPreview.slice(0, 300),
+      })
       if (!location) {
         throw new Error('予約ページ取得に失敗しました: 302（遷移先なし）')
       }
