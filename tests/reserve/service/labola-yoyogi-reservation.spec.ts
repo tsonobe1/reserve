@@ -116,7 +116,7 @@ describe('executeLabolaYoyogiReservation', () => {
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       LOGIN_URL,
@@ -154,7 +154,7 @@ describe('executeLabolaYoyogiReservation', () => {
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       LOGIN_URL,
@@ -282,7 +282,7 @@ describe('executeLabolaYoyogiReservation', () => {
     )
   })
 
-  it('Dry run中は customer-info は送信し customer-confirm は送信しない', async () => {
+  it('customer-info と customer-confirm を送信する', async () => {
     const fetchMock = mockFetch(async (_url, init) => {
       if (init?.method === 'GET') {
         return new Response('', {
@@ -297,16 +297,16 @@ describe('executeLabolaYoyogiReservation', () => {
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))).toBe(
       true
     )
     expect(
       fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-confirm/'))
-    ).toBe(false)
+    ).toBe(true)
   })
 
-  it('Dry run中でも customer-info 用フォーム値は組み立てられる', async () => {
+  it('customer-info 用フォーム値は組み立てられる', async () => {
     const fetchMock = mockFetch(async (_url, init) => {
       if (init?.method === 'GET') {
         return new Response(BOOKING_PAGE_HTML, {
@@ -321,7 +321,7 @@ describe('executeLabolaYoyogiReservation', () => {
 
     await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(fetchMock).toHaveBeenNthCalledWith(
       4,
       CUSTOMER_INFO_URL,
@@ -331,7 +331,7 @@ describe('executeLabolaYoyogiReservation', () => {
     )
   })
 
-  it('Dry run中は customer-confirm を送信しない', async () => {
+  it('customer-confirm を送信する', async () => {
     const fetchMock = mockFetch(async (url, init) => {
       if (url === BOOKING_URL && init?.method === 'GET') {
         return new Response(BOOKING_PAGE_HTML, {
@@ -346,10 +346,10 @@ describe('executeLabolaYoyogiReservation', () => {
 
     await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
 
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(
       fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-confirm/'))
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('facilityId が 1 以外ならスキップして fetch を呼ばない', async () => {
