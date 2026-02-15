@@ -163,6 +163,18 @@ export class ReserveDurableObject extends DurableObject {
   }
 
   async alarm(): Promise<void> {
+    const id = this.ctx.id.toString()
+    const alarmFiredAtMs = Date.now()
+    const executeAtMs = await this.ctx.storage.get<number>(EXECUTE_AT_STORAGE_KEY)
+    const hasValidExecuteAt = typeof executeAtMs === 'number' && Number.isFinite(executeAtMs)
+
+    console.info('予約alarmが発火しました', {
+      id,
+      alarmFiredAt: new Date(alarmFiredAtMs).toISOString(),
+      executeAt: hasValidExecuteAt ? new Date(executeAtMs).toISOString() : undefined,
+      msUntilExecuteAt: hasValidExecuteAt ? executeAtMs - alarmFiredAtMs : undefined,
+    })
+
     const retryState = await this.ctx.storage.get<RetryState>('retry_state')
     if (retryState) {
       const scheduledNext = await scheduleNextAlarmWhenRetryBudgetExceeded(
@@ -173,29 +185,28 @@ export class ReserveDurableObject extends DurableObject {
       )
       if (scheduledNext) {
         console.info('再試行予算に到達したため、次のalarmへ引き継ぎます', {
-          id: this.ctx.id.toString(),
+          id,
           attempt: retryState.attempt,
         })
         return
       }
     }
 
-    const executeAtMs = await this.ctx.storage.get<number>(EXECUTE_AT_STORAGE_KEY)
-    const waitMs = await waitUntilExecuteAt(executeAtMs, Date.now(), sleepMs)
+    const waitMs = await waitUntilExecuteAt(executeAtMs, alarmFiredAtMs, sleepMs)
     if (waitMs > 0) {
       console.info('予約開始時刻まで待機しました', {
-        id: this.ctx.id.toString(),
+        id,
         waitMs,
-        executeAt: new Date(executeAtMs as number).toISOString(),
+        executeAt: hasValidExecuteAt ? new Date(executeAtMs).toISOString() : undefined,
       })
     }
 
     const params = await this.ctx.storage.get('params')
     const parsed = ReserveParamsSchema.safeParse(params)
     if (!parsed.success) {
-      await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'fail')
+      await updateReserveStatusSafely(this.env.reserve, id, 'fail')
       console.warn('予約パラメータ不正のため fail で終了します', {
-        id: this.ctx.id.toString(),
+        id,
         params,
       })
       return
@@ -204,28 +215,28 @@ export class ReserveDurableObject extends DurableObject {
 
     if (reserveParams.facilityId !== 1) {
       console.info('Skip reserve: 非対応施設', {
-        id: this.ctx.id.toString(),
+        id,
         facilityId: reserveParams.facilityId,
       })
       return
     }
 
     console.log('予約実行対象を受け付けました（Labola/代々木）', {
-      id: this.ctx.id.toString(),
+      id,
       params: reserveParams,
     })
     try {
-      await executeLabolaYoyogiReservation(this.env, this.ctx.id.toString(), reserveParams)
-      await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'done')
+      await executeLabolaYoyogiReservation(this.env, id, reserveParams)
+      await updateReserveStatusSafely(this.env.reserve, id, 'done')
       if (retryState) {
         await this.ctx.storage.delete('retry_state')
       }
     } catch (error) {
       if (error instanceof Error) {
         if (shouldMarkAsFailed(error)) {
-          await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'fail')
+          await updateReserveStatusSafely(this.env.reserve, id, 'fail')
           console.info('予約不可のため fail で終了します', {
-            id: this.ctx.id.toString(),
+            id,
             error: error.message,
           })
           return
@@ -237,16 +248,16 @@ export class ReserveDurableObject extends DurableObject {
           Date.now()
         )
         if (!handled) {
-          await updateReserveStatusSafely(this.env.reserve, this.ctx.id.toString(), 'fail')
+          await updateReserveStatusSafely(this.env.reserve, id, 'fail')
           console.info('非再試行エラーのため fail で終了します', {
-            id: this.ctx.id.toString(),
+            id,
             error: error.message,
           })
           return
         }
         const nextRetryState = buildNextRetryState(retryState, Date.now())
         console.warn('予約処理で再試行対象エラーが発生したため、次のalarmを設定します', {
-          id: this.ctx.id.toString(),
+          id,
           attempt: nextRetryState.attempt,
           error: error.message,
         })
