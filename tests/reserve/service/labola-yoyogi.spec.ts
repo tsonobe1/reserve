@@ -7,7 +7,7 @@ import {
 } from '../../../src/reserve/service/labola-yoyogi/client'
 
 const RESERVE_ID = 'reserve-id-1'
-const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
+const LOGIN_URL = 'https://yoyaku.labola.jp/r/shop/3094/member/login/'
 const VALID_ENV = {
   LABOLA_YOYOGI_USERNAME: 'user',
   LABOLA_YOYOGI_PASSWORD: 'pass',

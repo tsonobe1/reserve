@@ -9,7 +9,7 @@ describe('buildBookingUrl', () => {
 
     expect(buildBookingUrl).toBeTypeOf('function')
     expect(buildBookingUrl?.('511', '2026-02-13', '15:00', '16:00')).toBe(
-      'https://labola.jp/r/booking/rental/shop/3094/facility/511/20260213-1500-1600/customer-type/'
+      'https://yoyaku.labola.jp/r/booking/rental/shop/3094/facility/511/20260213-1500-1600/customer-type/'
     )
   })
 })

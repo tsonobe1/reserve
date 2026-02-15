@@ -3,11 +3,10 @@ export type LabolaYoyogiClientEnv = {
   LABOLA_YOYOGI_PASSWORD?: string
 }
 
-const LABOLA_YOYOGI_LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
-const LABOLA_YOYOGI_CUSTOMER_INFO_URL =
-  'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
-const LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL =
-  'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
+const LABOLA_YOYOGI_BASE_ORIGIN = 'https://yoyaku.labola.jp'
+const LABOLA_YOYOGI_LOGIN_URL = `${LABOLA_YOYOGI_BASE_ORIGIN}/r/shop/3094/member/login/`
+const LABOLA_YOYOGI_CUSTOMER_INFO_URL = `${LABOLA_YOYOGI_BASE_ORIGIN}/r/booking/rental/shop/3094/customer-info/`
+const LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL = `${LABOLA_YOYOGI_BASE_ORIGIN}/r/booking/rental/shop/3094/customer-confirm/`
 const LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT = '会員IDまたはパスワードが正しくありません'
 const LABOLA_YOYOGI_LOGIN_PAGE_TITLE_TEXT = 'メンバーログイン - LaBOLA総合予約'
 const LABOLA_YOYOGI_CALENDAR_PAGE_TITLE_TEXT = '空き情報・予約 - LaBOLA総合予約'
@@ -22,6 +21,7 @@ const ERROR_LOGIN_INVALID_CREDENTIALS =
   'ログインに失敗しました: IDまたはパスワードを確認してください'
 const ERROR_LOGIN_POST_UPSTREAM = '相手側サーバ障害のためログインできませんでした'
 const LABOLA_HTTP_BODY_PREVIEW_LIMIT = 300
+const LABOLA_YOYOGI_ORIGIN = new URL(LABOLA_YOYOGI_LOGIN_URL).origin
 
 const isCalendarUrl = (url: string): boolean => {
   try {
@@ -139,7 +139,7 @@ export const postLogin = async (
     const headers: Record<string, string> = {
       'Content-Type': 'application/x-www-form-urlencoded',
       Referer: LABOLA_YOYOGI_LOGIN_URL,
-      Origin: 'https://labola.jp',
+      Origin: LABOLA_YOYOGI_ORIGIN,
     }
     if (cookieHeader) {
       headers.Cookie = cookieHeader
@@ -290,7 +290,7 @@ export const buildBookingUrl = (
   const compactDate = date.replaceAll('-', '')
   const compactStart = startTime.replace(':', '')
   const compactEnd = endTime.replace(':', '')
-  return `https://labola.jp/r/booking/rental/shop/3094/facility/${siteCourtNo}/${compactDate}-${compactStart}-${compactEnd}/customer-type/`
+  return `${LABOLA_YOYOGI_BASE_ORIGIN}/r/booking/rental/shop/3094/facility/${siteCourtNo}/${compactDate}-${compactStart}-${compactEnd}/customer-type/`
 }
 
 export const extractFormValues = (html: string): Record<string, string> => {
@@ -424,7 +424,7 @@ export const submitCustomerForms = async (
   const headers: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',
     Referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
-    Origin: 'https://labola.jp',
+    Origin: LABOLA_YOYOGI_ORIGIN,
   }
   headers.Cookie = cookieHeader
   const csrfToken = customerInfoForm.get('csrfmiddlewaretoken')

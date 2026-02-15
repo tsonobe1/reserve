@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi/client'
 
 const RESERVE_ID = 'reserve-id-1'
-const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
-const CUSTOMER_CONFIRM_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-confirm/'
+const CUSTOMER_INFO_URL = 'https://yoyaku.labola.jp/r/booking/rental/shop/3094/customer-info/'
+const CUSTOMER_CONFIRM_URL = 'https://yoyaku.labola.jp/r/booking/rental/shop/3094/customer-confirm/'
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -51,7 +51,7 @@ describe('submitCustomerForms', () => {
         headers: expect.objectContaining({
           Cookie: 'csrftoken=abc; sessionid=xyz',
           Referer: CUSTOMER_INFO_URL,
-          Origin: 'https://labola.jp',
+          Origin: 'https://yoyaku.labola.jp',
           'X-CSRFToken': 'csrf-token-from-form',
         }),
       })

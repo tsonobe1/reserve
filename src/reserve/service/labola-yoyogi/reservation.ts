@@ -66,7 +66,7 @@ const followLoginRedirects = async (
 ): Promise<string | undefined> => {
   let response = loginResponse
   let cookieHeader = currentCookieHeader
-  let baseUrl = response.url || 'https://labola.jp/'
+  let baseUrl = response.url || 'https://yoyaku.labola.jp/'
 
   for (let hop = 0; hop < LABOLA_REDIRECT_MAX_HOPS && isRedirectStatus(response.status); hop += 1) {
     const location = response.headers.get('location')

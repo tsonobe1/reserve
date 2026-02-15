@@ -17,11 +17,11 @@ const ENV_WITH_FALLBACK = {
   LABOLA_YOYOGI_ADDRESS: '東京都渋谷区',
   LABOLA_YOYOGI_MOBILE_NUMBER: '090-1111-2222',
 }
-const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
-const LOGIN_REDIRECT_URL = 'https://yoyaku.labola.jp/r/shop/3094/member/login/'
+const LOGIN_URL = 'https://yoyaku.labola.jp/r/shop/3094/member/login/'
+const LOGIN_REDIRECT_URL = 'https://labola.jp/r/shop/3094/member/login/'
 const BOOKING_URL =
-  'https://labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
-const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
+  'https://yoyaku.labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
+const CUSTOMER_INFO_URL = 'https://yoyaku.labola.jp/r/booking/rental/shop/3094/customer-info/'
 const BOOKING_PAGE_HTML = `
 <form method="post">
   <input type="text" name="name" value="">
