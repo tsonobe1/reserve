@@ -18,6 +18,7 @@ const YOYOGI_UI_TO_SITE_COURT_NO_MAP: Record<number, string> = {
   3: '511',
   4: '535',
 }
+const LABOLA_REDIRECT_MAX_HOPS = 3
 
 const LABOLA_YOYOGI_BOOKING_NOT_OPEN_TEXTS = [
   'このメンバータイプではこの日時で予約することは出来ません',
@@ -27,6 +28,87 @@ const LABOLA_YOYOGI_BOOKING_NOT_OPEN_TEXTS = [
 
 const isBookingNotOpenYet = (html: string): boolean => {
   return LABOLA_YOYOGI_BOOKING_NOT_OPEN_TEXTS.some((text) => html.includes(text))
+}
+
+const toCookieSummary = (cookieHeader?: string): string => {
+  if (!cookieHeader) return 'none'
+  return cookieHeader
+    .split(';')
+    .map((pair) => pair.trim().split('=')[0])
+    .filter(Boolean)
+    .join(', ')
+}
+
+const isRedirectStatus = (status: number): boolean => {
+  return status >= 300 && status < 400
+}
+
+const isCalendarUrl = (url: string): boolean => {
+  try {
+    return new URL(url).pathname.startsWith('/r/shop/3094/calendar/')
+  } catch {
+    return false
+  }
+}
+
+const isCustomerInfoUrl = (url: string): boolean => {
+  try {
+    return new URL(url).pathname.startsWith('/r/booking/rental/shop/3094/customer-info/')
+  } catch {
+    return false
+  }
+}
+
+const followLoginRedirects = async (
+  reserveId: string,
+  loginResponse: Response,
+  currentCookieHeader: string | undefined
+): Promise<string | undefined> => {
+  let response = loginResponse
+  let cookieHeader = currentCookieHeader
+  let baseUrl = response.url || 'https://labola.jp/'
+
+  for (let hop = 0; hop < LABOLA_REDIRECT_MAX_HOPS && isRedirectStatus(response.status); hop += 1) {
+    const location = response.headers.get('location')
+    if (!location) {
+      break
+    }
+    const redirectedUrl = new URL(location, baseUrl).toString()
+    console.log('Labola HTTP Request', {
+      id: reserveId,
+      step: 'login-post-redirect-get',
+      method: 'GET',
+      url: redirectedUrl,
+      cookieKeys: toCookieSummary(cookieHeader),
+      payload: null,
+    })
+
+    try {
+      response = await fetch(redirectedUrl, {
+        method: 'GET',
+        headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+        redirect: 'manual',
+      })
+    } catch {
+      throw new Error('ログインリダイレクト先取得中に通信エラーが発生しました')
+    }
+
+    const redirectBodyPreview = await response.clone().text()
+    console.log('Labola HTTP Response', {
+      id: reserveId,
+      step: 'login-post-redirect-get',
+      status: response.status,
+      location: response.headers.get('location') ?? undefined,
+      redirected: response.redirected,
+      url: response.url,
+      bodySize: redirectBodyPreview.length,
+      bodyPreview: redirectBodyPreview.slice(0, 300),
+    })
+    cookieHeader = mergeCookieHeader(cookieHeader, response.headers.get('set-cookie') ?? undefined)
+    baseUrl = redirectedUrl
+  }
+
+  return cookieHeader
 }
 
 export const mapLabolaYoyogiCourtNo = (uiCourtNo: number): string | undefined => {
@@ -65,6 +147,7 @@ export const executeLabolaYoyogiReservation = async (
     activeCookieHeader,
     loginResponse.headers.get('set-cookie') ?? undefined
   )
+  activeCookieHeader = await followLoginRedirects(reserveId, loginResponse, activeCookieHeader)
   const bookingUrl = buildBookingUrl(siteCourtNo, params.date, params.startTime, params.endTime)
   let bookingResponse: Response
   try {
@@ -73,13 +156,7 @@ export const executeLabolaYoyogiReservation = async (
       step: 'booking-page-get',
       method: 'GET',
       url: bookingUrl,
-      cookieKeys: activeCookieHeader
-        ? activeCookieHeader
-            .split(';')
-            .map((pair) => pair.trim().split('=')[0])
-            .filter(Boolean)
-            .join(', ')
-        : 'none',
+      cookieKeys: toCookieSummary(activeCookieHeader),
       payload: null,
     })
     bookingResponse = await fetch(bookingUrl, {
@@ -94,7 +171,7 @@ export const executeLabolaYoyogiReservation = async (
     throw new Error('予約ページ取得中に通信エラーが発生しました')
   }
   if (!bookingResponse.ok) {
-    if (bookingResponse.status >= 300 && bookingResponse.status < 400) {
+    if (isRedirectStatus(bookingResponse.status)) {
       const location = bookingResponse.headers.get('location')
       const bookingRedirectPreview = await bookingResponse.clone().text()
       console.log('Labola HTTP Response', {
@@ -111,7 +188,7 @@ export const executeLabolaYoyogiReservation = async (
         throw new Error('予約ページ取得に失敗しました: 302（遷移先なし）')
       }
       const redirectedUrl = new URL(location, bookingUrl).toString()
-      if (redirectedUrl === 'https://labola.jp/r/booking/rental/shop/3094/customer-info/') {
+      if (isCustomerInfoUrl(redirectedUrl)) {
         console.info('予約ページ取得で customer-info へのリダイレクトを検出しました', {
           id: reserveId,
           from: bookingUrl,
@@ -124,13 +201,7 @@ export const executeLabolaYoyogiReservation = async (
           step: 'booking-page-get-redirect',
           method: 'GET',
           url: redirectedUrl,
-          cookieKeys: activeCookieHeader
-            ? activeCookieHeader
-                .split(';')
-                .map((pair) => pair.trim().split('=')[0])
-                .filter(Boolean)
-                .join(', ')
-            : 'none',
+          cookieKeys: toCookieSummary(activeCookieHeader),
           payload: null,
         })
         bookingResponse = await fetch(redirectedUrl, {
@@ -163,7 +234,7 @@ export const executeLabolaYoyogiReservation = async (
   })
   if (
     bookingResponse.redirected &&
-    bookingResponse.url.includes('https://labola.jp/r/shop/3094/calendar/')
+    isCalendarUrl(bookingResponse.url)
   ) {
     throw new Error('希望時間帯は予約不可（カレンダーへリダイレクト）')
   }

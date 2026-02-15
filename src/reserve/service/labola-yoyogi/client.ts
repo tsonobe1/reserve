@@ -23,6 +23,14 @@ const ERROR_LOGIN_INVALID_CREDENTIALS =
 const ERROR_LOGIN_POST_UPSTREAM = '相手側サーバ障害のためログインできませんでした'
 const LABOLA_HTTP_BODY_PREVIEW_LIMIT = 300
 
+const isCalendarUrl = (url: string): boolean => {
+  try {
+    return new URL(url).pathname.startsWith('/r/shop/3094/calendar/')
+  } catch {
+    return false
+  }
+}
+
 const maskLabolaFieldForLog = (key: string, value: string): string => {
   const lower = key.toLowerCase()
   if (lower.includes('password')) return '***'
@@ -452,8 +460,7 @@ export const submitCustomerForms = async (
   })
   ensurePostSuccess(customerInfoResponse, 'customer-info')
   if (
-    (customerInfoResponse.redirected &&
-      customerInfoResponse.url.includes('https://labola.jp/r/shop/3094/calendar/')) ||
+    (customerInfoResponse.redirected && isCalendarUrl(customerInfoResponse.url)) ||
     customerInfoPreview.preview.includes(LABOLA_YOYOGI_ALREADY_RESERVED_TEXT) ||
     customerInfoPreview.preview.includes(LABOLA_YOYOGI_CALENDAR_PAGE_TITLE_TEXT) ||
     (customerInfoResponse.headers.get('set-cookie') ?? '').includes(

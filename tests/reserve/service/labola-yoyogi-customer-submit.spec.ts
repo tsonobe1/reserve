@@ -225,7 +225,7 @@ describe('submitCustomerForms', () => {
           ok: true,
           status: 200,
           redirected: true,
-          url: 'https://labola.jp/r/shop/3094/calendar/',
+          url: 'https://yoyaku.labola.jp/r/shop/3094/calendar/',
           headers: new Headers(),
           text: async () => '<div>すでに予約済みです。他の時間を選択してください。</div>',
           clone() {

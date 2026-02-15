@@ -18,6 +18,7 @@ const ENV_WITH_FALLBACK = {
   LABOLA_YOYOGI_MOBILE_NUMBER: '090-1111-2222',
 }
 const LOGIN_URL = 'https://labola.jp/r/shop/3094/member/login/'
+const LOGIN_REDIRECT_URL = 'https://yoyaku.labola.jp/r/shop/3094/member/login/'
 const BOOKING_URL =
   'https://labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
 const CUSTOMER_INFO_URL = 'https://labola.jp/r/booking/rental/shop/3094/customer-info/'
@@ -223,6 +224,59 @@ describe('executeLabolaYoyogiReservation', () => {
         method: 'GET',
         headers: expect.objectContaining({
           Cookie: 'csrftoken=get-token; sessionid=post-session',
+        }),
+      })
+    )
+  })
+
+  it('ログインPOSTが別ドメインへ301でもリダイレクト先のcookieを予約URL GETへ引き継ぐ', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', {
+          status: 301,
+          headers: {
+            location: LOGIN_REDIRECT_URL,
+            'set-cookie': 'booking-prod=booking-token; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_REDIRECT_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'sessionid=redirect-session; Path=/',
+          },
+        })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return new Response(BOOKING_PAGE_HTML, { status: 200 })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      LOGIN_REDIRECT_URL,
+      expect.objectContaining({
+        method: 'GET',
+      })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      BOOKING_URL,
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Cookie: 'csrftoken=get-token; booking-prod=booking-token; sessionid=redirect-session',
         }),
       })
     )
@@ -436,7 +490,7 @@ describe('executeLabolaYoyogiReservation', () => {
           ok: true,
           status: 200,
           redirected: true,
-          url: 'https://labola.jp/r/shop/3094/calendar/',
+          url: 'https://yoyaku.labola.jp/r/shop/3094/calendar/',
           headers: new Headers(),
           text: async () => '',
           clone() {
