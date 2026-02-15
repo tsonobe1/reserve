@@ -48,6 +48,21 @@ const BOOKING_PAGE_LOGIN_REQUIRED_HTML = `
   <input type="submit" name="submit_member" value="ログインして予約">
 </form>
 `
+const BOOKING_PAGE_NOT_OPEN_HTML = `
+<div id="flash_messages" class="alert alert-info">
+  <ul class="messages">
+    <li class="info">このメンバータイプではこの日時で予約することは出来ません。</li>
+  </ul>
+</div>
+<div id="apply">
+  <section id="customer" novalidate>
+    <div id="login_block">
+      <div class="login">今現在メンバーの予約は受け付けておりません。</div>
+      <div class="login">今現在ビジターの予約は受け付けておりません。</div>
+    </div>
+  </section>
+</div>
+`
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -372,6 +387,34 @@ describe('executeLabolaYoyogiReservation', () => {
       executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
     ).rejects.toThrow('希望時間帯は予約不可（すでに予約済み）')
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('予約受付前メッセージを検出した場合は中断する', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', { status: 200 })
+      }
+      if (url === BOOKING_URL && init?.method === 'GET') {
+        return new Response(BOOKING_PAGE_NOT_OPEN_HTML, { status: 200 })
+      }
+      return new Response('', { status: 200 })
+    })
+
+    await expect(
+      executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
+    ).rejects.toThrow('希望時間帯は予約不可（予約受付前）')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/customer-info/'))).toBe(
+      false
+    )
   })
 
   it('予約ページ取得がカレンダーへリダイレクトされた場合は中断する', async () => {

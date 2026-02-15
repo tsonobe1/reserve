@@ -6,6 +6,8 @@ import { updateStatusByDoId } from '../repository/reserve'
 const LABOLA_RETRY_BUDGET_MS = 12 * 60 * 1000
 const LABOLA_RETRY_MAX_ATTEMPT = 8
 const LABOLA_RETRY_NEXT_ALARM_DELAY_MS = 15 * 1000
+const LABOLA_INITIAL_ALARM_LEAD_MS = 10 * 1000
+const EXECUTE_AT_STORAGE_KEY = 'execute_at_ms'
 
 type RetryState = {
   attempt: number
@@ -26,6 +28,37 @@ export const shouldIncrementRetryState = (error: Error): boolean => {
 
 export const shouldMarkAsFailed = (error: Error): boolean => {
   return error.message.includes('希望時間帯は予約不可')
+}
+
+export const buildInitialAlarmAt = (executeAtMs: number, now: number): number => {
+  return Math.max(now, executeAtMs - LABOLA_INITIAL_ALARM_LEAD_MS)
+}
+
+export const buildWaitMsUntilExecuteAt = (executeAtMs: number, now: number): number => {
+  return Math.max(0, executeAtMs - now)
+}
+
+export const waitUntilExecuteAt = async (
+  executeAtMs: number | undefined,
+  now: number,
+  sleep: (ms: number) => Promise<void>
+): Promise<number> => {
+  if (executeAtMs == null || !Number.isFinite(executeAtMs)) {
+    return 0
+  }
+
+  const waitMs = buildWaitMsUntilExecuteAt(executeAtMs, now)
+  if (waitMs > 0) {
+    await sleep(waitMs)
+  }
+  return waitMs
+}
+
+const sleepMs = async (ms: number): Promise<void> => {
+  if (ms <= 0) return
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
 const updateReserveStatusSafely = async (
@@ -101,18 +134,21 @@ export const scheduleNextAlarmWhenRetryBudgetExceeded = async (
 
 // Storage キー:
 // - params: POST ペイロードの params
+// - execute_at_ms: 初回実行の基準時刻(ms)
 // Alarm:
 // - alarmAt: Durable Object のアラームスケジューラで管理される時刻 (setAlarm/getAlarm)
 
 export class ReserveDurableObject extends DurableObject {
   async schedule(params: unknown, executeAt: string): Promise<void> {
-    const scheduledAt = Date.parse(executeAt)
-    if (Number.isNaN(scheduledAt)) {
+    const executeAtMs = Date.parse(executeAt)
+    if (Number.isNaN(executeAtMs)) {
       throw new Error('executeAt は有効な日時文字列である必要があります')
     }
+    const alarmAt = buildInitialAlarmAt(executeAtMs, Date.now())
 
     await this.ctx.storage.put('params', params ?? null)
-    await this.ctx.storage.setAlarm(scheduledAt)
+    await this.ctx.storage.put(EXECUTE_AT_STORAGE_KEY, executeAtMs)
+    await this.ctx.storage.setAlarm(alarmAt)
   }
 
   async getState(): Promise<{ params: unknown; alarmAt: number | null }> {
@@ -142,6 +178,16 @@ export class ReserveDurableObject extends DurableObject {
         })
         return
       }
+    }
+
+    const executeAtMs = await this.ctx.storage.get<number>(EXECUTE_AT_STORAGE_KEY)
+    const waitMs = await waitUntilExecuteAt(executeAtMs, Date.now(), sleepMs)
+    if (waitMs > 0) {
+      console.info('予約開始時刻まで待機しました', {
+        id: this.ctx.id.toString(),
+        waitMs,
+        executeAt: new Date(executeAtMs as number).toISOString(),
+      })
     }
 
     const params = await this.ctx.storage.get('params')

@@ -19,6 +19,16 @@ const YOYOGI_UI_TO_SITE_COURT_NO_MAP: Record<number, string> = {
   4: '535',
 }
 
+const LABOLA_YOYOGI_BOOKING_NOT_OPEN_TEXTS = [
+  'このメンバータイプではこの日時で予約することは出来ません',
+  '今現在メンバーの予約は受け付けておりません',
+  '今現在ビジターの予約は受け付けておりません',
+]
+
+const isBookingNotOpenYet = (html: string): boolean => {
+  return LABOLA_YOYOGI_BOOKING_NOT_OPEN_TEXTS.some((text) => html.includes(text))
+}
+
 export const mapLabolaYoyogiCourtNo = (uiCourtNo: number): string | undefined => {
   return YOYOGI_UI_TO_SITE_COURT_NO_MAP[uiCourtNo]
 }
@@ -164,6 +174,9 @@ export const executeLabolaYoyogiReservation = async (
   const bookingPageHtml = await bookingResponse.text()
   if (bookingPageHtml.includes('すでに予約済みです')) {
     throw new Error('希望時間帯は予約不可（すでに予約済み）')
+  }
+  if (isBookingNotOpenYet(bookingPageHtml)) {
+    throw new Error('希望時間帯は予約不可（予約受付前）')
   }
   const extractedCustomerInfoValues = extractFormValues(bookingPageHtml)
   if ((extractedCustomerInfoValues.submit_member ?? '').includes('ログインして予約')) {
