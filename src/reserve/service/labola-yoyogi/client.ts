@@ -21,7 +21,25 @@ const ERROR_LOGIN_INVALID_CREDENTIALS =
   'ログインに失敗しました: IDまたはパスワードを確認してください'
 const ERROR_LOGIN_POST_UPSTREAM = '相手側サーバ障害のためログインできませんでした'
 const LABOLA_HTTP_BODY_PREVIEW_LIMIT = 300
+const LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS = 5
 const LABOLA_YOYOGI_ORIGIN = new URL(LABOLA_YOYOGI_LOGIN_URL).origin
+const LABOLA_YOYOGI_CONFIRM_SUCCESS_HINTS = [
+  '予約が完了しました',
+  '予約完了',
+  '申込完了',
+  'お申し込みありがとうございました',
+  'ご予約ありがとうございます',
+  '予約番号',
+  '受付番号',
+]
+const LABOLA_YOYOGI_CONFIRM_FAILURE_HINTS = [
+  'エラー',
+  '入力内容',
+  'このメンバータイプではこの日時で予約することは出来ません',
+  'ログインして予約',
+  'すでに予約済み',
+  '予約受付前',
+]
 
 const isCalendarUrl = (url: string): boolean => {
   try {
@@ -70,6 +88,139 @@ const safeResponsePreview = async (
     }
   } catch {
     return { bodySize: 0, preview: '' }
+  }
+}
+
+const readHtmlAttr = (tag: string, attr: string): string | undefined => {
+  const matched = tag.match(new RegExp(`\\b${attr}=(?:\"([^\"]*)\"|'([^']*)')`, 'i'))
+  return matched?.[1] ?? matched?.[2]
+}
+
+const normalizeHtmlText = (raw: string): string => {
+  return raw
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const extractTitleText = (html: string): string | undefined => {
+  const titleMatch = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)
+  if (!titleMatch) return undefined
+  const text = normalizeHtmlText(titleMatch[1])
+  return text || undefined
+}
+
+const extractTagTexts = (html: string, tagName: 'h1' | 'h2' | 'h3'): string[] => {
+  const texts: string[] = []
+  const pattern = new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'gi')
+  for (const matched of html.matchAll(pattern)) {
+    const text = normalizeHtmlText(matched[1])
+    if (!text) continue
+    texts.push(text)
+    if (texts.length >= LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS) {
+      break
+    }
+  }
+  return texts
+}
+
+const extractFlashMessages = (html: string): string[] => {
+  const texts: string[] = []
+  const pattern =
+    /<li\b[^>]*class=(?:\"|')[^"']*\b(?:info|error|success|warning)\b[^"']*(?:\"|')[^>]*>([\s\S]*?)<\/li>/gi
+  for (const matched of html.matchAll(pattern)) {
+    const text = normalizeHtmlText(matched[1])
+    if (!text) continue
+    texts.push(text)
+    if (texts.length >= LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS) {
+      break
+    }
+  }
+  return texts
+}
+
+const extractFormDiagnostics = (
+  html: string
+): Array<{ action?: string; method: string; submitNames: string[] }> => {
+  const forms: Array<{ action?: string; method: string; submitNames: string[] }> = []
+  for (const matched of html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/gi)) {
+    const block = matched[0]
+    const openTag = block.match(/<form\b[^>]*>/i)?.[0] ?? ''
+    const action = readHtmlAttr(openTag, 'action')
+    const method = (readHtmlAttr(openTag, 'method') ?? 'GET').toUpperCase()
+    const submitNames: string[] = []
+    for (const inputMatched of block.matchAll(/<input\b[^>]*>/gi)) {
+      const inputTag = inputMatched[0]
+      const type = (readHtmlAttr(inputTag, 'type') ?? 'text').toLowerCase()
+      if (type !== 'submit') continue
+      const name = readHtmlAttr(inputTag, 'name')
+      if (!name) continue
+      submitNames.push(name)
+      if (submitNames.length >= LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS) {
+        break
+      }
+    }
+    forms.push({ action, method, submitNames })
+    if (forms.length >= LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS) {
+      break
+    }
+  }
+  return forms
+}
+
+const collectHintMatches = (html: string, hints: string[]): string[] => {
+  return hints.filter((hint) => html.includes(hint))
+}
+
+const buildCustomerConfirmResponseDiagnostics = (
+  response: Response,
+  html: string
+): {
+  finalUrl: string
+  redirected: boolean
+  title?: string
+  headings: string[]
+  flashMessages: string[]
+  formCount: number
+  forms: Array<{ action?: string; method: string; submitNames: string[] }>
+  successHints: string[]
+  failureHints: string[]
+  likelyResult: 'success_candidate' | 'failure_candidate' | 'mixed_signals' | 'unknown'
+} => {
+  const successHints = collectHintMatches(html, LABOLA_YOYOGI_CONFIRM_SUCCESS_HINTS)
+  const failureHints = collectHintMatches(html, LABOLA_YOYOGI_CONFIRM_FAILURE_HINTS)
+  let likelyResult: 'success_candidate' | 'failure_candidate' | 'mixed_signals' | 'unknown' =
+    'unknown'
+  if (successHints.length > 0 && failureHints.length === 0) {
+    likelyResult = 'success_candidate'
+  } else if (failureHints.length > 0 && successHints.length === 0) {
+    likelyResult = 'failure_candidate'
+  } else if (successHints.length > 0 && failureHints.length > 0) {
+    likelyResult = 'mixed_signals'
+  }
+
+  const forms = extractFormDiagnostics(html)
+  return {
+    finalUrl: response.url,
+    redirected: response.redirected,
+    title: extractTitleText(html),
+    headings: [
+      ...extractTagTexts(html, 'h1'),
+      ...extractTagTexts(html, 'h2'),
+      ...extractTagTexts(html, 'h3'),
+    ].slice(0, LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS),
+    flashMessages: extractFlashMessages(html),
+    formCount: forms.length,
+    forms,
+    successHints,
+    failureHints,
+    likelyResult,
   }
 }
 
@@ -505,6 +656,20 @@ export const submitCustomerForms = async (
     bodySize: customerConfirmPreview.bodySize,
     bodyPreview: customerConfirmPreview.preview,
   })
+  try {
+    const customerConfirmHtml = await customerConfirmResponse.clone().text()
+    console.log('Labola customer-confirm response diagnostics', {
+      id: reserveId,
+      step: 'customer-confirm-post',
+      ...buildCustomerConfirmResponseDiagnostics(customerConfirmResponse, customerConfirmHtml),
+    })
+  } catch (error) {
+    console.warn('Labola customer-confirm response diagnostics 抽出に失敗しました', {
+      id: reserveId,
+      step: 'customer-confirm-post',
+      error,
+    })
+  }
   ensurePostSuccess(customerConfirmResponse, 'customer-confirm')
 }
 

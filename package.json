@@ -4,11 +4,12 @@
   "scripts": {
     "build:ui": "vite build",
     "dev": "pnpm run build:ui && wrangler dev",
-    "deploy": "pnpm run build:ui && wrangler deploy --minify",
+    "deploy": "pnpm run deploy:production",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy:production": "pnpm run build:ui && wrangler deploy --minify --env production"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",

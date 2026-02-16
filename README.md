@@ -63,7 +63,7 @@ Postman の場合は `Authorization` タブで `Bearer Token` を選び、`<AUTH
 ## Deploy
 
 ```txt
-pnpm run deploy             # production env, remote D1
+pnpm run deploy:production  # production env only, remote D1
 ```
 
 ## Type generation
