@@ -112,6 +112,16 @@ export const ReserveFormPanel = ({ token, onTokenChange }: ReserveFormPanelProps
           >
             <option value="1">国立代々木競技場フットサルコート</option>
           </select>
+          <p class="text-sm" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            <a
+              href="https://yoyaku.labola.jp/r/shop/3094/calendar_week/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-slate-700 hover:bg-slate-100"
+            >
+              週間カレンダーを開く
+            </a>
+          </p>
         </div>
 
         <CourtSelector value={court} onSelect={setCourt} />

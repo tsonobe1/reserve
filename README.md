@@ -77,3 +77,21 @@ pnpm run cf-typegen
 ## UI (Hono JSX + Tailwind)
 
 UI は Hono JSX で HTML を返し、Tailwind は CDN (`@tailwindcss/browser`) をページ内で読み込みます。
+
+### UI development workflow
+
+`pnpm run dev` は起動時に `build:ui` を 1 回だけ実行し、その後は `wrangler dev` を起動します。  
+そのため `src/web/csr/**` の変更は自動反映されません。
+
+UI を編集する場合は、次のどちらかで再ビルドしてください。
+
+```txt
+# 変更ごとに手動ビルド
+pnpm run build:ui
+```
+
+```txt
+# UI 自動再ビルド + Worker
+pnpm run build:ui --watch
+wrangler dev
+```
