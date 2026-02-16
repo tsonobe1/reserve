@@ -26,7 +26,11 @@ const ERROR_CUSTOMER_CONFIRM_UNCERTAIN = 'customer-confirm 応答から予約完
 const LABOLA_HTTP_BODY_PREVIEW_LIMIT = 300
 const LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS = 5
 const LABOLA_YOYOGI_ORIGIN = new URL(LABOLA_YOYOGI_LOGIN_URL).origin
-const LABOLA_LOGIN_USER_AGENT = 'curl/8.7.1'
+const LABOLA_LOGIN_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
+const LABOLA_LOGIN_ACCEPT =
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+const LABOLA_LOGIN_ACCEPT_LANGUAGE = 'ja,en;q=0.9'
 const LABOLA_YOYOGI_CONFIRM_SUCCESS_HINTS = [
   '予約が完了しました',
   '予約完了',
@@ -283,6 +287,44 @@ export const extractCookieHeader = (setCookieHeader: string): string | undefined
   return cookiePairs.join('; ')
 }
 
+export const getResponseSetCookieHeaders = (response: Response): string[] => {
+  const headers = response.headers as Headers & {
+    getSetCookie?: () => string[]
+    getAll?: (name: string) => string[]
+  }
+
+  if (typeof headers.getSetCookie === 'function') {
+    const values = headers.getSetCookie().map((value) => value.trim()).filter(Boolean)
+    if (values.length > 0) {
+      return values
+    }
+  }
+
+  if (typeof headers.getAll === 'function') {
+    const values = headers
+      .getAll('Set-Cookie')
+      .map((value) => value.trim())
+      .filter(Boolean)
+    if (values.length > 0) {
+      return values
+    }
+  }
+
+  const fallback = response.headers.get('set-cookie')
+  if (!fallback) {
+    return []
+  }
+  return [fallback]
+}
+
+export const getResponseSetCookieHeader = (response: Response): string | undefined => {
+  const setCookies = getResponseSetCookieHeaders(response)
+  if (setCookies.length === 0) {
+    return undefined
+  }
+  return setCookies.join(', ')
+}
+
 export const mergeCookieHeader = (
   currentCookieHeader: string | undefined,
   setCookieHeader: string | undefined
@@ -335,7 +377,8 @@ export const postLogin = async (
     // manual request profile.
     const headers: Record<string, string> = {
       'User-Agent': LABOLA_LOGIN_USER_AGENT,
-      Accept: '*/*',
+      Accept: LABOLA_LOGIN_ACCEPT,
+      'Accept-Language': LABOLA_LOGIN_ACCEPT_LANGUAGE,
       'Content-Type': 'application/x-www-form-urlencoded',
       Origin: LABOLA_YOYOGI_ORIGIN,
       Referer: LABOLA_YOYOGI_LOGIN_URL,
@@ -474,16 +517,19 @@ export const prepareLogin = async (
   })
   const loginPageHtml = await loginPageResponse.text()
   const csrfMiddlewareToken = extractFormValues(loginPageHtml).csrfmiddlewaretoken
+  const loginSetCookieHeader = getResponseSetCookieHeader(loginPageResponse)
+  const loginCookies = loginSetCookieHeader ? extractCookieHeader(loginSetCookieHeader) : undefined
   console.log('LabolaログインページのCSRFトークン抽出結果', {
     id: reserveId,
     hasCsrfMiddlewareToken: Boolean(csrfMiddlewareToken),
+    loginPageCookieKeys: toCookieSummary(loginCookies),
   })
 
   return {
     username,
     password,
     csrfMiddlewareToken,
-    loginSetCookieHeader: loginPageResponse.headers.get('set-cookie') ?? undefined,
+    loginSetCookieHeader,
   }
 }
 
@@ -665,21 +711,19 @@ export const submitCustomerForms = async (
     bodyPreview: customerInfoPreview.preview,
   })
   ensurePostSuccess(customerInfoResponse, 'customer-info')
+  const customerInfoSetCookieHeader = getResponseSetCookieHeader(customerInfoResponse)
   if (
     (customerInfoResponse.redirected && isCalendarUrl(customerInfoResponse.url)) ||
     customerInfoPreview.preview.includes(LABOLA_YOYOGI_ALREADY_RESERVED_TEXT) ||
     customerInfoPreview.preview.includes(LABOLA_YOYOGI_CALENDAR_PAGE_TITLE_TEXT) ||
-    (customerInfoResponse.headers.get('set-cookie') ?? '').includes(
-      LABOLA_YOYOGI_ALREADY_RESERVED_UNICODE_TEXT
-    )
+    (customerInfoSetCookieHeader ?? '').includes(LABOLA_YOYOGI_ALREADY_RESERVED_UNICODE_TEXT)
   ) {
     throw new Error('希望時間帯は予約不可（すでに予約済み）')
   }
   const customerConfirmDefaults = extractFormValues(await customerInfoResponse.text())
   const mergedCustomerConfirmForm = mergeFormValues(customerConfirmDefaults, customerConfirmForm)
   const customerConfirmCookieHeader =
-    mergeCookieHeader(cookieHeader, customerInfoResponse.headers.get('set-cookie') ?? undefined) ??
-    cookieHeader
+    mergeCookieHeader(cookieHeader, customerInfoSetCookieHeader) ?? cookieHeader
   const customerConfirmHeaders: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',
     Referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,

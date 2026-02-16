@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildLoginForm,
   extractCookieHeader,
+  getResponseSetCookieHeader,
   postLogin,
   prepareLogin,
 } from '../../../src/reserve/service/labola-yoyogi/client'
@@ -199,5 +200,33 @@ describe('extractCookieHeader', () => {
       'messages=abc; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/, csrftoken=csrf-value; Path=/'
 
     expect(extractCookieHeader(header)).toBe('messages=abc; csrftoken=csrf-value')
+  })
+})
+
+describe('getResponseSetCookieHeader', () => {
+  it('Headers.getSetCookie が使える場合は複数Set-Cookieを結合して返す', () => {
+    const response = {
+      headers: {
+        getSetCookie: () => ['csrftoken=csrf-value; Path=/', 'sessionid=session-value; Path=/'],
+        get: () => null,
+      },
+    } as unknown as Response
+
+    expect(getResponseSetCookieHeader(response)).toBe(
+      'csrftoken=csrf-value; Path=/, sessionid=session-value; Path=/'
+    )
+  })
+
+  it('getSetCookie/getAll が使えない場合は headers.get(set-cookie) を使う', () => {
+    const response = new Response('', {
+      status: 200,
+      headers: {
+        'set-cookie': 'csrftoken=csrf-value; Path=/, sessionid=session-value; Path=/',
+      },
+    })
+
+    expect(getResponseSetCookieHeader(response)).toBe(
+      'csrftoken=csrf-value; Path=/, sessionid=session-value; Path=/'
+    )
   })
 })

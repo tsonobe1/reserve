@@ -5,6 +5,7 @@ import {
   extractFormValues,
   extractCookieHeader,
   fillCustomerInfoRequiredValues,
+  getResponseSetCookieHeader,
   mergeCookieHeader,
   postLogin,
   prepareLogin,
@@ -109,7 +110,7 @@ const followLoginRedirects = async (
       bodySize: redirectBodyPreview.length,
       bodyPreview: redirectBodyPreview.slice(0, 300),
     })
-    cookieHeader = mergeCookieHeader(cookieHeader, response.headers.get('set-cookie') ?? undefined)
+    cookieHeader = mergeCookieHeader(cookieHeader, getResponseSetCookieHeader(response))
     baseUrl = redirectedUrl
   }
 
@@ -150,7 +151,7 @@ export const executeLabolaYoyogiReservation = async (
   const loginResponse = await postLogin(reserveId, loginForm, activeCookieHeader)
   activeCookieHeader = mergeCookieHeader(
     activeCookieHeader,
-    loginResponse.headers.get('set-cookie') ?? undefined
+    getResponseSetCookieHeader(loginResponse)
   )
   activeCookieHeader = await followLoginRedirects(reserveId, loginResponse, activeCookieHeader)
   if (isLoginOnlyMode(env)) {
@@ -252,7 +253,7 @@ export const executeLabolaYoyogiReservation = async (
   }
   activeCookieHeader = mergeCookieHeader(
     activeCookieHeader,
-    bookingResponse.headers.get('set-cookie') ?? undefined
+    getResponseSetCookieHeader(bookingResponse)
   )
   const bookingPageHtml = await bookingResponse.text()
   if (bookingPageHtml.includes('すでに予約済みです')) {
