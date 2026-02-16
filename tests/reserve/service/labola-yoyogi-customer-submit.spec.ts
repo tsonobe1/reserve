@@ -75,6 +75,54 @@ describe('submitCustomerForms', () => {
     )
   })
 
+  it('customer-info 応答の set-cookie と csrf を customer-confirm へ引き継ぐ', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    const fetchMock = mockFetch(async (url) => {
+      if (url === CUSTOMER_INFO_URL) {
+        return new Response('<input type="hidden" name="csrfmiddlewaretoken" value="csrf-next">', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=next-csrf; Path=/, sessionid=next-session; Path=/',
+          },
+        })
+      }
+      return new Response(CUSTOMER_CONFIRM_SUCCESS_HTML, { status: 200 })
+    })
+    const customerInfoForm = new URLSearchParams({
+      csrfmiddlewaretoken: 'csrf-current',
+      submit_conf: '予約内容の確認',
+    })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await submitCustomerForms?.(
+      RESERVE_ID,
+      customerInfoForm,
+      customerConfirmForm,
+      'csrftoken=current-csrf; sessionid=current-session'
+    )
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      CUSTOMER_CONFIRM_URL,
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('csrfmiddlewaretoken=csrf-next'),
+        headers: expect.objectContaining({
+          Cookie: 'csrftoken=next-csrf; sessionid=next-session',
+          'X-CSRFToken': 'csrf-next',
+        }),
+      })
+    )
+  })
+
   it('skipFinalSubmit=true の場合は customer-confirm POST を送信しない', async () => {
     const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((

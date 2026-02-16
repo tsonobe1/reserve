@@ -238,6 +238,40 @@ describe('executeLabolaYoyogiReservation', () => {
     )
   })
 
+  it('LABOLA_YOYOGI_LOGIN_ONLY=true の場合はログイン完了後に処理を終了する', async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      if (url === LOGIN_URL && init?.method === 'GET') {
+        return new Response('', {
+          status: 200,
+          headers: {
+            'set-cookie': 'csrftoken=get-token; Path=/, sessionid=get-session; Path=/',
+          },
+        })
+      }
+      if (url === LOGIN_URL && init?.method === 'POST') {
+        return new Response('', { status: 200 })
+      }
+      return createDefaultSuccessResponse(url, init)
+    })
+
+    await executeLabolaYoyogiReservation(
+      {
+        ...VALID_ENV,
+        LABOLA_YOYOGI_LOGIN_ONLY: 'true',
+      },
+      RESERVE_ID,
+      createParams()
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      BOOKING_URL,
+      expect.objectContaining({
+        method: 'GET',
+      })
+    )
+  })
+
   it('ログインPOSTが別ドメインへ301でもリダイレクト先のcookieを予約URL GETへ引き継ぐ', async () => {
     const fetchMock = mockFetch(async (url, init) => {
       if (url === LOGIN_URL && init?.method === 'GET') {

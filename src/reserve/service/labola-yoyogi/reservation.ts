@@ -59,6 +59,11 @@ const isCustomerInfoUrl = (url: string): boolean => {
   }
 }
 
+const isLoginOnlyMode = (env: LabolaYoyogiClientEnv): boolean => {
+  const value = env.LABOLA_YOYOGI_LOGIN_ONLY?.trim().toLowerCase()
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on'
+}
+
 const followLoginRedirects = async (
   reserveId: string,
   loginResponse: Response,
@@ -148,6 +153,13 @@ export const executeLabolaYoyogiReservation = async (
     loginResponse.headers.get('set-cookie') ?? undefined
   )
   activeCookieHeader = await followLoginRedirects(reserveId, loginResponse, activeCookieHeader)
+  if (isLoginOnlyMode(env)) {
+    console.info('Labolaログイン確認モードのためログイン後に処理を終了します', {
+      id: reserveId,
+      cookieKeys: toCookieSummary(activeCookieHeader),
+    })
+    return
+  }
   const bookingUrl = buildBookingUrl(siteCourtNo, params.date, params.startTime, params.endTime)
   let bookingResponse: Response
   try {

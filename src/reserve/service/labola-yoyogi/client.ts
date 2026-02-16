@@ -1,6 +1,7 @@
 export type LabolaYoyogiClientEnv = {
   LABOLA_YOYOGI_USERNAME?: string
   LABOLA_YOYOGI_PASSWORD?: string
+  LABOLA_YOYOGI_LOGIN_ONLY?: string
 }
 
 const LABOLA_YOYOGI_BASE_ORIGIN = 'https://yoyaku.labola.jp'
@@ -286,16 +287,27 @@ export const mergeCookieHeader = (
     return currentCookieHeader
   }
 
+  const parseCookiePair = (cookie: string): { key: string; value: string } | undefined => {
+    const trimmed = cookie.trim()
+    if (!trimmed) return undefined
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex <= 0) return undefined
+    const key = trimmed.slice(0, separatorIndex).trim()
+    const value = trimmed.slice(separatorIndex + 1).trim()
+    if (!key || !value) return undefined
+    return { key, value }
+  }
+
   const merged = new Map<string, string>()
   for (const cookie of currentCookieHeader.split(';').map((part) => part.trim())) {
-    const [key, value] = cookie.split('=')
-    if (!key || !value) continue
-    merged.set(key, value)
+    const parsed = parseCookiePair(cookie)
+    if (!parsed) continue
+    merged.set(parsed.key, parsed.value)
   }
   for (const cookie of extracted.split(';').map((part) => part.trim())) {
-    const [key, value] = cookie.split('=')
-    if (!key || !value) continue
-    merged.set(key, value)
+    const parsed = parseCookiePair(cookie)
+    if (!parsed) continue
+    merged.set(parsed.key, parsed.value)
   }
 
   return Array.from(merged.entries())
@@ -594,15 +606,15 @@ export const submitCustomerForms = async (
     throw new Error('customer-info/customer-confirm 送信に必要なCookieがありません')
   }
 
-  const headers: Record<string, string> = {
+  const customerInfoHeaders: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',
     Referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
     Origin: LABOLA_YOYOGI_ORIGIN,
   }
-  headers.Cookie = cookieHeader
-  const csrfToken = customerInfoForm.get('csrfmiddlewaretoken')
-  if (csrfToken) {
-    headers['X-CSRFToken'] = csrfToken
+  customerInfoHeaders.Cookie = cookieHeader
+  const customerInfoCsrfToken = customerInfoForm.get('csrfmiddlewaretoken')
+  if (customerInfoCsrfToken) {
+    customerInfoHeaders['X-CSRFToken'] = customerInfoCsrfToken
   }
 
   let customerInfoResponse: Response
@@ -617,7 +629,7 @@ export const submitCustomerForms = async (
     })
     customerInfoResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_INFO_URL, {
       method: 'POST',
-      headers,
+      headers: customerInfoHeaders,
       body: customerInfoForm.toString(),
     })
   } catch {
@@ -644,6 +656,19 @@ export const submitCustomerForms = async (
   }
   const customerConfirmDefaults = extractFormValues(await customerInfoResponse.text())
   const mergedCustomerConfirmForm = mergeFormValues(customerConfirmDefaults, customerConfirmForm)
+  const customerConfirmCookieHeader =
+    mergeCookieHeader(cookieHeader, customerInfoResponse.headers.get('set-cookie') ?? undefined) ??
+    cookieHeader
+  const customerConfirmHeaders: Record<string, string> = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    Referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
+    Origin: LABOLA_YOYOGI_ORIGIN,
+    Cookie: customerConfirmCookieHeader,
+  }
+  const customerConfirmCsrfToken = mergedCustomerConfirmForm.get('csrfmiddlewaretoken')
+  if (customerConfirmCsrfToken) {
+    customerConfirmHeaders['X-CSRFToken'] = customerConfirmCsrfToken
+  }
   if (options?.skipFinalSubmit) {
     console.log('Dry run: customer-confirm最終送信をスキップします', {
       id: reserveId,
@@ -659,12 +684,12 @@ export const submitCustomerForms = async (
       step: 'customer-confirm-post',
       method: 'POST',
       url: LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL,
-      cookieKeys: toCookieSummary(cookieHeader),
+      cookieKeys: toCookieSummary(customerConfirmCookieHeader),
       payload: toMaskedFormLog(mergedCustomerConfirmForm),
     })
     customerConfirmResponse = await fetch(LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL, {
       method: 'POST',
-      headers,
+      headers: customerConfirmHeaders,
       body: mergedCustomerConfirmForm.toString(),
     })
   } catch {

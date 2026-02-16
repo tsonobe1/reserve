@@ -19,4 +19,13 @@ describe('mergeCookieHeader', () => {
 
     expect(merged).toBe('csrftoken=old-csrf; booking-prod=new-booking; sessionid=new-session')
   })
+
+  it('Cookie値に = を含む場合でも値を壊さず更新する', () => {
+    const merged = mergeCookieHeader(
+      'sessionid=old-session==; csrftoken=old-csrf==',
+      'sessionid=new-session==; Path=/, csrftoken=new-csrf==; Path=/'
+    )
+
+    expect(merged).toBe('sessionid=new-session==; csrftoken=new-csrf==')
+  })
 })
