@@ -22,6 +22,8 @@ new_sqlite_classes = ["ReserveDurableObject"]
 
 # 本番環境
 [env.production]
+workers_dev = true
+preview_urls = false
 [[env.production.d1_databases]]
 binding = "reserve"
 database_name = "reserve"
