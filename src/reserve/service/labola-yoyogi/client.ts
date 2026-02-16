@@ -9,6 +9,7 @@ const LABOLA_YOYOGI_LOGIN_URL = `${LABOLA_YOYOGI_BASE_ORIGIN}/r/shop/3094/member
 const LABOLA_YOYOGI_CUSTOMER_INFO_URL = `${LABOLA_YOYOGI_BASE_ORIGIN}/r/booking/rental/shop/3094/customer-info/`
 const LABOLA_YOYOGI_CUSTOMER_CONFIRM_URL = `${LABOLA_YOYOGI_BASE_ORIGIN}/r/booking/rental/shop/3094/customer-confirm/`
 const LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT = '会員IDまたはパスワードが正しくありません'
+const LABOLA_YOYOGI_INVALID_CREDENTIALS_ALT_TEXT = '会員番号またはパスワードが違います。'
 const LABOLA_YOYOGI_LOGIN_PAGE_TITLE_TEXT = 'メンバーログイン - LaBOLA総合予約'
 const LABOLA_YOYOGI_CALENDAR_PAGE_TITLE_TEXT = '空き情報・予約 - LaBOLA総合予約'
 const LABOLA_YOYOGI_ALREADY_RESERVED_TEXT = 'すでに予約済みです'
@@ -25,6 +26,7 @@ const ERROR_CUSTOMER_CONFIRM_UNCERTAIN = 'customer-confirm 応答から予約完
 const LABOLA_HTTP_BODY_PREVIEW_LIMIT = 300
 const LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS = 5
 const LABOLA_YOYOGI_ORIGIN = new URL(LABOLA_YOYOGI_LOGIN_URL).origin
+const LABOLA_LOGIN_USER_AGENT = 'curl/8.7.1'
 const LABOLA_YOYOGI_CONFIRM_SUCCESS_HINTS = [
   '予約が完了しました',
   '予約完了',
@@ -180,6 +182,12 @@ const collectHintMatches = (html: string, hints: string[]): string[] => {
   return hints.filter((hint) => html.includes(hint))
 }
 
+const extractLoginErrorText = (html: string): string | undefined => {
+  const matched = html.match(/<ul\b[^>]*class=(?:\"|')[^"']*\berrorlist\b[^"']*(?:\"|')[^>]*>[\s\S]*?<li>([\s\S]*?)<\/li>/i)
+  if (!matched) return undefined
+  return normalizeHtmlText(matched[1]) || undefined
+}
+
 const buildCustomerConfirmResponseDiagnostics = (
   response: Response,
   html: string
@@ -321,10 +329,16 @@ export const postLogin = async (
   cookieHeader?: string
 ): Promise<Response> => {
   try {
+    // NOTE:
+    // Upstream login can reject with a generic credential error depending on
+    // request header fingerprint. Keep the same header order as the known-good
+    // manual request profile.
     const headers: Record<string, string> = {
+      'User-Agent': LABOLA_LOGIN_USER_AGENT,
+      Accept: '*/*',
       'Content-Type': 'application/x-www-form-urlencoded',
-      Referer: LABOLA_YOYOGI_LOGIN_URL,
       Origin: LABOLA_YOYOGI_ORIGIN,
+      Referer: LABOLA_YOYOGI_LOGIN_URL,
     }
     if (cookieHeader) {
       headers.Cookie = cookieHeader
@@ -374,10 +388,17 @@ export const postLogin = async (
       throw new Error(`ログインPOSTに失敗しました: ${response.status}`)
     }
     const responseBody = await response.clone().text()
+    const loginErrorText = extractLoginErrorText(responseBody)
     if (
       responseBody.includes(LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT) ||
+      responseBody.includes(LABOLA_YOYOGI_INVALID_CREDENTIALS_ALT_TEXT) ||
       responseBody.includes(LABOLA_YOYOGI_LOGIN_PAGE_TITLE_TEXT)
     ) {
+      console.warn('Labolaログイン失敗詳細', {
+        id: reserveId,
+        step: 'login-post',
+        loginErrorText,
+      })
       throw new Error(ERROR_LOGIN_INVALID_CREDENTIALS)
     }
     return response
