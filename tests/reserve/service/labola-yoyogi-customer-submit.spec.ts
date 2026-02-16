@@ -4,6 +4,7 @@ import * as labolaYoyogi from '../../../src/reserve/service/labola-yoyogi/client
 const RESERVE_ID = 'reserve-id-1'
 const CUSTOMER_INFO_URL = 'https://yoyaku.labola.jp/r/booking/rental/shop/3094/customer-info/'
 const CUSTOMER_CONFIRM_URL = 'https://yoyaku.labola.jp/r/booking/rental/shop/3094/customer-confirm/'
+const CUSTOMER_CONFIRM_SUCCESS_HTML = '<title>予約完了 - LaBOLA総合予約</title><h1>予約完了</h1>'
 
 const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   const fetchMock = vi.fn(impl)
@@ -26,7 +27,12 @@ describe('submitCustomerForms', () => {
         ) => Promise<void>)
       | undefined
 
-    const fetchMock = mockFetch(async () => new Response('', { status: 200 }))
+    const fetchMock = mockFetch(async (url) => {
+      if (url === CUSTOMER_CONFIRM_URL) {
+        return new Response(CUSTOMER_CONFIRM_SUCCESS_HTML, { status: 200 })
+      }
+      return new Response('', { status: 200 })
+    })
     const customerInfoForm = new URLSearchParams({
       csrfmiddlewaretoken: 'csrf-token-from-form',
       submit_conf: '予約内容の確認',
@@ -149,6 +155,37 @@ describe('submitCustomerForms', () => {
         'csrftoken=abc; sessionid=xyz'
       )
     ).rejects.toThrow('customer-confirm 送信に失敗しました: 500')
+  })
+
+  it('customer-confirm が 200 でも予約完了を確認できない場合は例外を投げる', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    mockFetch(async (url) => {
+      if (url === CUSTOMER_INFO_URL) {
+        return new Response('<input type="hidden" name="csrfmiddlewaretoken" value="csrf-token">', {
+          status: 200,
+        })
+      }
+      return new Response('<title>予約内容の確認 - LaBOLA総合予約</title>', { status: 200 })
+    })
+    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await expect(
+      submitCustomerForms?.(
+        RESERVE_ID,
+        customerInfoForm,
+        customerConfirmForm,
+        'csrftoken=abc; sessionid=xyz'
+      )
+    ).rejects.toThrow('customer-confirm 応答から予約完了を確認できませんでした')
   })
 
   it('customer-info が 500 の場合は例外を投げる', async () => {

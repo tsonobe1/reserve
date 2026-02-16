@@ -34,6 +34,11 @@ remote = true
 name = "RESERVE_DO"
 class_name = "ReserveDurableObject"
 
+[env.production.observability]
+[env.production.observability.logs]
+enabled = true
+invocation_logs = true
+
 [observability]
 [observability.logs]
 enabled = false

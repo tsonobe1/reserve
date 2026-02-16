@@ -20,6 +20,7 @@ const ERROR_LOGIN_PAGE_NETWORK = 'ログインページ取得中に通信エラ�
 const ERROR_LOGIN_INVALID_CREDENTIALS =
   'ログインに失敗しました: IDまたはパスワードを確認してください'
 const ERROR_LOGIN_POST_UPSTREAM = '相手側サーバ障害のためログインできませんでした'
+const ERROR_CUSTOMER_CONFIRM_UNCERTAIN = 'customer-confirm 応答から予約完了を確認できませんでした'
 const LABOLA_HTTP_BODY_PREVIEW_LIMIT = 300
 const LABOLA_CONFIRM_DIAGNOSTIC_MAX_TEXTS = 5
 const LABOLA_YOYOGI_ORIGIN = new URL(LABOLA_YOYOGI_LOGIN_URL).origin
@@ -221,6 +222,27 @@ const buildCustomerConfirmResponseDiagnostics = (
     successHints,
     failureHints,
     likelyResult,
+  }
+}
+
+type CustomerConfirmResponseDiagnostics = ReturnType<typeof buildCustomerConfirmResponseDiagnostics>
+
+const isCustomerConfirmFinishUrl = (url: string): boolean => {
+  try {
+    return new URL(url).pathname.startsWith('/r/booking/rental/finish/')
+  } catch {
+    return false
+  }
+}
+
+const ensureCustomerConfirmSucceeded = (diagnostics: CustomerConfirmResponseDiagnostics): void => {
+  const confirmedByFinishUrl =
+    isCustomerConfirmFinishUrl(diagnostics.finalUrl) && diagnostics.failureHints.length === 0
+  const confirmedByHints =
+    diagnostics.likelyResult === 'success_candidate' && diagnostics.formCount === 0
+
+  if (!confirmedByFinishUrl && !confirmedByHints) {
+    throw new Error(ERROR_CUSTOMER_CONFIRM_UNCERTAIN)
   }
 }
 
@@ -656,21 +678,31 @@ export const submitCustomerForms = async (
     bodySize: customerConfirmPreview.bodySize,
     bodyPreview: customerConfirmPreview.preview,
   })
+  ensurePostSuccess(customerConfirmResponse, 'customer-confirm')
+
   try {
     const customerConfirmHtml = await customerConfirmResponse.clone().text()
+    const diagnostics = buildCustomerConfirmResponseDiagnostics(
+      customerConfirmResponse,
+      customerConfirmHtml
+    )
     console.log('Labola customer-confirm response diagnostics', {
       id: reserveId,
       step: 'customer-confirm-post',
-      ...buildCustomerConfirmResponseDiagnostics(customerConfirmResponse, customerConfirmHtml),
+      ...diagnostics,
     })
+    ensureCustomerConfirmSucceeded(diagnostics)
   } catch (error) {
+    if (error instanceof Error && error.message === ERROR_CUSTOMER_CONFIRM_UNCERTAIN) {
+      throw error
+    }
     console.warn('Labola customer-confirm response diagnostics 抽出に失敗しました', {
       id: reserveId,
       step: 'customer-confirm-post',
       error,
     })
+    throw new Error(ERROR_CUSTOMER_CONFIRM_UNCERTAIN)
   }
-  ensurePostSuccess(customerConfirmResponse, 'customer-confirm')
 }
 
 const isCustomerPost5xxError = (message: string): boolean => {

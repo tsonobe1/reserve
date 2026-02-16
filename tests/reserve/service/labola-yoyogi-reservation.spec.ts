@@ -22,6 +22,8 @@ const LOGIN_REDIRECT_URL = 'https://labola.jp/r/shop/3094/member/login/'
 const BOOKING_URL =
   'https://yoyaku.labola.jp/r/booking/rental/shop/3094/facility/479/20260220-1000-1100/customer-type/'
 const CUSTOMER_INFO_URL = 'https://yoyaku.labola.jp/r/booking/rental/shop/3094/customer-info/'
+const CUSTOMER_CONFIRM_URL = 'https://yoyaku.labola.jp/r/booking/rental/shop/3094/customer-confirm/'
+const CUSTOMER_CONFIRM_SUCCESS_HTML = '<title>予約完了 - LaBOLA総合予約</title><h1>予約完了</h1>'
 const BOOKING_PAGE_HTML = `
 <form method="post">
   <input type="text" name="name" value="">
@@ -71,6 +73,13 @@ const mockFetch = (impl: Parameters<typeof vi.fn>[0]) => {
   return fetchMock
 }
 
+const createDefaultSuccessResponse = (url: string | URL | Request, init?: RequestInit): Response => {
+  if (String(url) === CUSTOMER_CONFIRM_URL && init?.method === 'POST') {
+    return new Response(CUSTOMER_CONFIRM_SUCCESS_HTML, { status: 200 })
+  }
+  return new Response('', { status: 200 })
+}
+
 const createParams = (
   overrides?: Partial<Parameters<typeof executeLabolaYoyogiReservation>[2]>
 ) => ({
@@ -111,7 +120,7 @@ describe('executeLabolaYoyogiReservation', () => {
           },
         })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(_url, init)
     })
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
@@ -149,7 +158,7 @@ describe('executeLabolaYoyogiReservation', () => {
           },
         })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(_url, init)
     })
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
@@ -177,7 +186,7 @@ describe('executeLabolaYoyogiReservation', () => {
           },
         })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(_url, init)
     })
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
@@ -212,7 +221,7 @@ describe('executeLabolaYoyogiReservation', () => {
           },
         })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(url, init)
     })
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
@@ -259,7 +268,7 @@ describe('executeLabolaYoyogiReservation', () => {
       if (url === BOOKING_URL && init?.method === 'GET') {
         return new Response(BOOKING_PAGE_HTML, { status: 200 })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(url, init)
     })
 
     await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
@@ -292,7 +301,7 @@ describe('executeLabolaYoyogiReservation', () => {
           },
         })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(_url, init)
     })
 
     await executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
@@ -316,7 +325,7 @@ describe('executeLabolaYoyogiReservation', () => {
           },
         })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(_url, init)
     })
 
     await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
@@ -341,7 +350,7 @@ describe('executeLabolaYoyogiReservation', () => {
           },
         })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(url, init)
     })
 
     await executeLabolaYoyogiReservation(ENV_WITH_FALLBACK, RESERVE_ID, createParams())
@@ -384,7 +393,7 @@ describe('executeLabolaYoyogiReservation', () => {
       if (url === BOOKING_URL && init?.method === 'GET') {
         return new Response('', { status: 500 })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(url, init)
     })
 
     await expect(
@@ -546,7 +555,7 @@ describe('executeLabolaYoyogiReservation', () => {
       if (url === CUSTOMER_INFO_URL && init?.method === 'GET') {
         return new Response(BOOKING_PAGE_HTML, { status: 200 })
       }
-      return new Response('', { status: 200 })
+      return createDefaultSuccessResponse(url, init)
     })
 
     await expect(
