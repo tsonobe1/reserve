@@ -1,6 +1,6 @@
 # Labola Alarm 実装計画メモ
 
-更新日: 2026-02-13
+更新日: 2026-02-17
 
 ## 目的
 
@@ -103,25 +103,39 @@
 
 ## 現時点の課題（2026-02-17 JST）
 
-- 現象（production）:
+- 現象（production / Workers）:
   - `ReserveDurableObject` の `alarm` は発火しているが、`login-post` が成功せず予約処理が止まる。
-  - 例: `2026-02-16T16:44:50.000Z`（`2026-02-17 01:44:50 JST`）の実行で、
-    - `login-page-get` は成功
-    - `hasCsrfMiddlewareToken: true`
-    - `loginPageCookieKeys: csrftoken`
+  - 失敗パターン（例: `2026-02-17T01:59:50.000Z` の alarm 実行）:
+    - egress 診断: `ip=172.70.233.194` / `ASN=AS13335 Cloudflare, Inc.`（`Osaka`）
+    - `login-page-get` は成功（`status: 200`、`set-cookie: csrftoken`）
     - `login-post` は `status: 200` + ログインページへ戻る
+    - `set-cookie` が `csrftoken` のみ（`booking-prod` などのセッションCookieが発行されない）
     - `loginErrorText: ログイン出来ません。`
+    - 診断A/Bでも両方 `status: 200` のまま（`curl_like` は別メッセージになるが、セッションCookieは出ない）
 
 - 切り分け結果:
-  - シークレット（`LABOLA_YOYOGI_USERNAME` / `LABOLA_YOYOGI_PASSWORD`）は再設定済み。
-  - 同じ認証情報で、ローカル `curl` からは `POST /member/login/` が `302` で通るケースを確認。
-  - Worker 実行時のみ `200` でログインページ戻りになるため、資格情報不一致よりも実行元条件の影響が疑わしい。
+  - シークレット（`LABOLA_YOYOGI_USERNAME` / `LABOLA_YOYOGI_PASSWORD`）は再設定済み（資格情報ミスの可能性は低い）。
+  - ローカル（`wrangler dev`）では、Cloudflare WARP を ON にして egress が `AS13335 Cloudflare` の状態でもログイン成功を確認。
+    - egress 診断: `ip=104.28.238.182` / `ASN=AS13335 Cloudflare, Inc.`（`Chiba`）
+    - `login-post` が `status: 302`（`Location: /r/customer/member-bookings/`）
+    - `set-cookie` に `booking-prod` / `csrftoken` / `messages` が発行される
+    - `login-post-redirect-get`（会員ページ）も `status: 200` で取得できる
+  - つまり「Cloudflare ASN だから一律に弾かれる」ではなく、
+    - Workers の egress IP プール（特定レンジ/特定IP）、
+    - または Workers 実行環境のフィンガープリント（TLS/HTTPスタック等）、
+    - あるいは経路差（`server: cloudflare` / `cf-ray` の有無など）
+    が関与している可能性が高い。
 
 - 解釈:
-  - 現在の主課題は「アラーム未発火」ではなく「Worker 経由ログインが upstream 判定で拒否されること」。
-  - 先方の bot/risk 判定（送信元IP/ASN, フィンガープリント等）に起因する可能性が高い。
+  - 現在の主課題は「アラーム未発火」ではなく「production Workers 経由ログインが不安定/拒否されること」。
+  - `status: 200 + ログインページ戻り + booking-prod不発行` は upstream がログイン成功として扱っていない（= セッション確立失敗）。
+  - 本文には `turnstile` / `cf-chl` / `captcha` などのシグナルは検出されていないため、HTML上の明示チャレンジではなく、
+    実行元条件によるサイレント拒否（エラーメッセージ差し替え含む）の可能性がある。
 
 - 対応候補（優先順）:
-  - Worker はスケジューラ専用にし、実ログインは固定IP環境（外部実行API）で実施する。
-  - 暫定的に `ログイン出来ません。` を短時間再試行対象へ追加し、ジッター付きで再試行する。
-  - 監視ログを維持し、`login-post` の `status/location/loginErrorText` を継続観測する。
+  - 観測を増やす:
+    - production の `login-egress`（`ip/asn/org`）と、`login-post` の `status/setCookieNames/loginErrorText` を複数回集め、
+      「特定IPで固定的に失敗するのか / IPが変わると成功するのか」を確認する。
+  - Worker はスケジューラ専用にし、実ログインは固定IP環境（外部ランナー/外部実行API）で実施する。
+  - 暫定的に `ログイン出来ません。` を短時間再試行対象へ追加し、ジッター付きで再試行する（ただし、恒常的拒否の場合は無限ループに注意）。
+  - 監視ログを維持し、`login-post` の `status/location/loginErrorText/setCookieNames/bodySignals` を継続観測する。

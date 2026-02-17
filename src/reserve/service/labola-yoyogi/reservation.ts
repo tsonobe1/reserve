@@ -43,6 +43,49 @@ const toCookieSummary = (cookieHeader?: string): string => {
     .join(', ')
 }
 
+// Non-cryptographic fingerprint for log correlation (no secret values in logs).
+const fnv1a32 = (input: string): string => {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+const readCookieValueFromCookieHeader = (
+  cookieHeader: string | undefined,
+  name: string
+): string | undefined => {
+  if (!cookieHeader) return undefined
+  for (const part of cookieHeader.split(';')) {
+    const trimmed = part.trim()
+    if (!trimmed) continue
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex <= 0) continue
+    const key = trimmed.slice(0, separatorIndex).trim()
+    if (key !== name) continue
+    const value = trimmed.slice(separatorIndex + 1).trim()
+    return value || undefined
+  }
+  return undefined
+}
+
+const readCookieValueFromSetCookieHeader = (
+  setCookieHeader: string | undefined,
+  name: string
+): string | undefined => {
+  if (!setCookieHeader) return undefined
+  const needle = `${name}=`
+  const start = setCookieHeader.indexOf(needle)
+  if (start < 0) return undefined
+  const valueStart = start + needle.length
+  const valueEnd = setCookieHeader.indexOf(';', valueStart)
+  if (valueEnd < 0) return undefined
+  const value = setCookieHeader.slice(valueStart, valueEnd).trim()
+  return value || undefined
+}
+
 const isRedirectStatus = (status: number): boolean => {
   return status >= 300 && status < 400
 }
@@ -160,9 +203,36 @@ export const executeLabolaYoyogiReservation = async (
   const loginDiagnosticsEnabled = isLabolaLoginDiagnosticsEnabled(env)
   const loginDiagnosticAbEnabled = isLabolaLoginDiagnosticAbEnabled(env)
   const loginForm = buildLoginForm(credentials)
+  const loginPageCookieHeader = credentials.loginSetCookieHeader
+    ? extractCookieHeader(credentials.loginSetCookieHeader)
+    : undefined
   let activeCookieHeader = credentials.loginSetCookieHeader
     ? extractCookieHeader(credentials.loginSetCookieHeader)
     : undefined
+  if (loginDiagnosticsEnabled) {
+    const csrftokenFromSetCookie = readCookieValueFromSetCookieHeader(
+      credentials.loginSetCookieHeader,
+      'csrftoken'
+    )
+    const csrftokenFromCookieHeader = readCookieValueFromCookieHeader(activeCookieHeader, 'csrftoken')
+    console.warn('LabolaログインCookie比較', {
+      id: reserveId,
+      step: 'login-cookie-compare',
+      loginPageCookieHeaderFp: loginPageCookieHeader ? fnv1a32(loginPageCookieHeader) : undefined,
+      loginPostCookieHeaderFp: activeCookieHeader ? fnv1a32(activeCookieHeader) : undefined,
+      cookieHeaderExactMatch: loginPageCookieHeader === activeCookieHeader,
+      loginPageSetCookieCsrftoken: csrftokenFromSetCookie
+        ? { len: csrftokenFromSetCookie.length, fp: fnv1a32(csrftokenFromSetCookie) }
+        : undefined,
+      loginPostCookieCsrftoken: csrftokenFromCookieHeader
+        ? { len: csrftokenFromCookieHeader.length, fp: fnv1a32(csrftokenFromCookieHeader) }
+        : undefined,
+      csrftokenExactMatch:
+        Boolean(csrftokenFromSetCookie) &&
+        Boolean(csrftokenFromCookieHeader) &&
+        csrftokenFromSetCookie === csrftokenFromCookieHeader,
+    })
+  }
   const loginResponse = await postLogin(reserveId, loginForm, activeCookieHeader, {
     loginDiagnosticsEnabled,
     loginDiagnosticAbEnabled,
