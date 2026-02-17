@@ -7,6 +7,7 @@ import {
   extractCookieHeader,
   fillCustomerInfoRequiredValues,
   getResponseSetCookieHeader,
+  isLabolaLoginDiagnosticAbEnabled,
   isLabolaLoginDiagnosticsEnabled,
   mergeCookieHeader,
   postLogin,
@@ -157,12 +158,14 @@ export const executeLabolaYoyogiReservation = async (
 
   const credentials = await prepareLogin(env, reserveId)
   const loginDiagnosticsEnabled = isLabolaLoginDiagnosticsEnabled(env)
+  const loginDiagnosticAbEnabled = isLabolaLoginDiagnosticAbEnabled(env)
   const loginForm = buildLoginForm(credentials)
   let activeCookieHeader = credentials.loginSetCookieHeader
     ? extractCookieHeader(credentials.loginSetCookieHeader)
     : undefined
   const loginResponse = await postLogin(reserveId, loginForm, activeCookieHeader, {
     loginDiagnosticsEnabled,
+    loginDiagnosticAbEnabled,
   })
   activeCookieHeader = mergeCookieHeader(
     activeCookieHeader,

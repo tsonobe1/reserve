@@ -72,6 +72,7 @@ pnpm run deploy:production  # production env only, remote D1
 
 - `LABOLA_YOYOGI_LOGIN_DIAGNOSTIC=true`
 - または `LABOLA_YOYOGI_DIAGNOSTIC_LEVEL=full`
+- 任意: `LABOLA_YOYOGI_LOGIN_DIAGNOSTIC_AB=true`（login-post の A/B 比較POSTを追加）
 
 有効時は、`login-page-get` / `login-post` / `login-post-redirect-get` で以下を出力します。
 

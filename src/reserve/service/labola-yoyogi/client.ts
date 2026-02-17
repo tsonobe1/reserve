@@ -4,6 +4,7 @@ export type LabolaYoyogiClientEnv = {
   LABOLA_YOYOGI_LOGIN_ONLY?: string
   LABOLA_YOYOGI_LOGIN_DIAGNOSTIC?: string
   LABOLA_YOYOGI_DIAGNOSTIC_LEVEL?: string
+  LABOLA_YOYOGI_LOGIN_DIAGNOSTIC_AB?: string
 }
 
 const LABOLA_YOYOGI_BASE_ORIGIN = 'https://yoyaku.labola.jp'
@@ -33,6 +34,9 @@ const LABOLA_LOGIN_USER_AGENT =
 const LABOLA_LOGIN_ACCEPT =
   'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
 const LABOLA_LOGIN_ACCEPT_LANGUAGE = 'ja,en;q=0.9'
+const LABOLA_LOGIN_CURL_USER_AGENT = 'curl/8.7.1'
+const LABOLA_LOGIN_EGRESS_CHECK_URL = 'https://ipinfo.io/json'
+const LABOLA_LOGIN_EGRESS_CHECK_TIMEOUT_MS = 5000
 const LABOLA_LOGIN_DIAGNOSTIC_BODY_SIGNAL_PATTERNS: Array<{
   key: string
   pattern: RegExp
@@ -215,6 +219,63 @@ export const isLabolaLoginDiagnosticsEnabled = (env: LabolaYoyogiClientEnv): boo
   }
   const level = env.LABOLA_YOYOGI_DIAGNOSTIC_LEVEL?.trim().toLowerCase()
   return level === 'full' || level === 'debug' || level === 'trace'
+}
+
+export const isLabolaLoginDiagnosticAbEnabled = (env: LabolaYoyogiClientEnv): boolean => {
+  return parseBoolLike(env.LABOLA_YOYOGI_LOGIN_DIAGNOSTIC_AB)
+}
+
+type LabolaLoginEgressDiagnostics = {
+  provider: 'ipinfo.io'
+  ip?: string
+  asn?: string
+  org?: string
+  country?: string
+  region?: string
+  city?: string
+  error?: string
+}
+
+const fetchLabolaLoginEgressDiagnostics = async (): Promise<LabolaLoginEgressDiagnostics> => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+  }, LABOLA_LOGIN_EGRESS_CHECK_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(LABOLA_LOGIN_EGRESS_CHECK_URL, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      return {
+        provider: 'ipinfo.io',
+        error: `status:${response.status}`,
+      }
+    }
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>
+    const org = typeof payload.org === 'string' ? payload.org : undefined
+    const asn = org?.match(/\bAS\d+\b/i)?.[0]
+    return {
+      provider: 'ipinfo.io',
+      ip: typeof payload.ip === 'string' ? payload.ip : undefined,
+      asn,
+      org,
+      country: typeof payload.country === 'string' ? payload.country : undefined,
+      region: typeof payload.region === 'string' ? payload.region : undefined,
+      city: typeof payload.city === 'string' ? payload.city : undefined,
+    }
+  } catch (error) {
+    return {
+      provider: 'ipinfo.io',
+      error: error instanceof Error ? error.message : String(error),
+    }
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 const toMaskedRequestHeaders = (headers: Record<string, string>): Record<string, string> => {
@@ -543,28 +604,41 @@ export const postLogin = async (
   cookieHeader?: string,
   options?: {
     loginDiagnosticsEnabled?: boolean
+    loginDiagnosticAbEnabled?: boolean
   }
 ): Promise<Response> => {
   try {
-    // NOTE:
-    // Upstream login can reject with a generic credential error depending on
-    // request header fingerprint. Keep the same header order as the known-good
-    // manual request profile.
-    const headers: Record<string, string> = {
-      'User-Agent': LABOLA_LOGIN_USER_AGENT,
-      Accept: LABOLA_LOGIN_ACCEPT,
-      'Accept-Language': LABOLA_LOGIN_ACCEPT_LANGUAGE,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Origin: LABOLA_YOYOGI_ORIGIN,
-      Referer: LABOLA_YOYOGI_LOGIN_URL,
+    const buildLoginHeaders = (
+      profile: 'browser_like' | 'curl_like'
+    ): Record<string, string> => {
+      const headers: Record<string, string> =
+        profile === 'curl_like'
+          ? {
+              'User-Agent': LABOLA_LOGIN_CURL_USER_AGENT,
+              Accept: '*/*',
+              'Content-Type': 'application/x-www-form-urlencoded',
+              Origin: LABOLA_YOYOGI_ORIGIN,
+              Referer: LABOLA_YOYOGI_LOGIN_URL,
+            }
+          : {
+              'User-Agent': LABOLA_LOGIN_USER_AGENT,
+              Accept: LABOLA_LOGIN_ACCEPT,
+              'Accept-Language': LABOLA_LOGIN_ACCEPT_LANGUAGE,
+              'Content-Type': 'application/x-www-form-urlencoded',
+              Origin: LABOLA_YOYOGI_ORIGIN,
+              Referer: LABOLA_YOYOGI_LOGIN_URL,
+            }
+      if (cookieHeader) {
+        headers.Cookie = cookieHeader
+      }
+      const csrfToken = form.get('csrfmiddlewaretoken')
+      if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken
+      }
+      return headers
     }
-    if (cookieHeader) {
-      headers.Cookie = cookieHeader
-    }
-    const csrfToken = form.get('csrfmiddlewaretoken')
-    if (csrfToken) {
-      headers['X-CSRFToken'] = csrfToken
-    }
+
+    const headers = buildLoginHeaders('browser_like')
     console.log('Labola HTTP Request', {
       id: reserveId,
       step: 'login-post',
@@ -601,6 +675,67 @@ export const postLogin = async (
         requestCookieHeader: cookieHeader,
         loginErrorText,
       })
+    }
+    if (
+      options?.loginDiagnosticsEnabled &&
+      options?.loginDiagnosticAbEnabled &&
+      response.status < 300 &&
+      response.status >= 200
+    ) {
+      const altHeaders = buildLoginHeaders('curl_like')
+      let altResponse: Response | undefined
+      try {
+        console.log('Labola HTTP Request', {
+          id: reserveId,
+          step: 'login-post-ab',
+          requestProfile: 'curl_like',
+          method: 'POST',
+          url: LABOLA_YOYOGI_LOGIN_URL,
+          cookieKeys: toCookieSummary(cookieHeader),
+          payload: toMaskedFormLog(form),
+        })
+        altResponse = await fetch(LABOLA_YOYOGI_LOGIN_URL, {
+          method: 'POST',
+          headers: altHeaders,
+          body: form.toString(),
+          redirect: 'manual',
+        })
+        const altBody = await altResponse.clone().text()
+        const altLoginErrorText = extractLoginErrorText(altBody)
+        console.warn('LabolaログインA/B診断', {
+          id: reserveId,
+          step: 'login-post-ab',
+          primaryProfile: 'browser_like',
+          alternateProfile: 'curl_like',
+          primaryStatus: response.status,
+          alternateStatus: altResponse.status,
+          primaryLocation: locationHeader,
+          alternateLocation: altResponse.headers.get('location') ?? undefined,
+          primarySetCookieNames: getResponseSetCookieHeaders(response)
+            .map(parseSetCookieDiagnostics)
+            .filter((cookie): cookie is SetCookieDiagnostics => Boolean(cookie))
+            .map((cookie) => cookie.name),
+          alternateSetCookieNames: getResponseSetCookieHeaders(altResponse)
+            .map(parseSetCookieDiagnostics)
+            .filter((cookie): cookie is SetCookieDiagnostics => Boolean(cookie))
+            .map((cookie) => cookie.name),
+          primaryBodySignals: collectBodySignals(responseBody),
+          alternateBodySignals: collectBodySignals(altBody),
+          primaryTitle: extractTitleText(responseBody),
+          alternateTitle: extractTitleText(altBody),
+          primaryLoginErrorText: loginErrorText,
+          alternateLoginErrorText: altLoginErrorText,
+          primaryRequestHeaders: toMaskedRequestHeaders(headers),
+          alternateRequestHeaders: toMaskedRequestHeaders(altHeaders),
+        })
+      } catch (error) {
+        console.warn('LabolaログインA/B診断の追加POSTに失敗しました', {
+          id: reserveId,
+          step: 'login-post-ab',
+          error: error instanceof Error ? error.message : String(error),
+          hasResponse: Boolean(altResponse),
+        })
+      }
     }
     if (response.status >= 300 && response.status < 400) {
       return response
@@ -667,6 +802,15 @@ export const prepareLogin = async (
     usernamePreview: username.slice(0, 3),
     hasPassword: Boolean(password),
   })
+  const loginDiagnosticsEnabled = isLabolaLoginDiagnosticsEnabled(env)
+  if (loginDiagnosticsEnabled) {
+    const egressDiagnostics = await fetchLabolaLoginEgressDiagnostics()
+    console.warn('Labola実行元診断', {
+      id: reserveId,
+      step: 'login-egress',
+      ...egressDiagnostics,
+    })
+  }
 
   let loginPageResponse: Response
   try {
@@ -704,7 +848,6 @@ export const prepareLogin = async (
   const csrfMiddlewareToken = extractFormValues(loginPageHtml).csrfmiddlewaretoken
   const loginSetCookieHeader = getResponseSetCookieHeader(loginPageResponse)
   const loginCookies = loginSetCookieHeader ? extractCookieHeader(loginSetCookieHeader) : undefined
-  const loginDiagnosticsEnabled = isLabolaLoginDiagnosticsEnabled(env)
   console.log('LabolaログインページのCSRFトークン抽出結果', {
     id: reserveId,
     hasCsrfMiddlewareToken: Boolean(csrfMiddlewareToken),

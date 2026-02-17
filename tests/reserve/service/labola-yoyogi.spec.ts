@@ -3,6 +3,7 @@ import {
   buildLoginForm,
   extractCookieHeader,
   getResponseSetCookieHeader,
+  isLabolaLoginDiagnosticAbEnabled,
   isLabolaLoginDiagnosticsEnabled,
   postLogin,
   prepareLogin,
@@ -255,5 +256,19 @@ describe('isLabolaLoginDiagnosticsEnabled', () => {
         LABOLA_YOYOGI_USERNAME: 'user',
       })
     ).toBe(false)
+  })
+})
+
+describe('isLabolaLoginDiagnosticAbEnabled', () => {
+  it('LABOLA_YOYOGI_LOGIN_DIAGNOSTIC_AB=true で有効になる', () => {
+    expect(
+      isLabolaLoginDiagnosticAbEnabled({
+        LABOLA_YOYOGI_LOGIN_DIAGNOSTIC_AB: 'true',
+      })
+    ).toBe(true)
+  })
+
+  it('未設定なら無効になる', () => {
+    expect(isLabolaLoginDiagnosticAbEnabled({})).toBe(false)
   })
 })
