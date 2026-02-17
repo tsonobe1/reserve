@@ -3,6 +3,7 @@ import {
   buildLoginForm,
   extractCookieHeader,
   getResponseSetCookieHeader,
+  isLabolaLoginDiagnosticsEnabled,
   postLogin,
   prepareLogin,
 } from '../../../src/reserve/service/labola-yoyogi/client'
@@ -228,5 +229,31 @@ describe('getResponseSetCookieHeader', () => {
     expect(getResponseSetCookieHeader(response)).toBe(
       'csrftoken=csrf-value; Path=/, sessionid=session-value; Path=/'
     )
+  })
+})
+
+describe('isLabolaLoginDiagnosticsEnabled', () => {
+  it('LABOLA_YOYOGI_LOGIN_DIAGNOSTIC=true で有効になる', () => {
+    expect(
+      isLabolaLoginDiagnosticsEnabled({
+        LABOLA_YOYOGI_LOGIN_DIAGNOSTIC: 'true',
+      })
+    ).toBe(true)
+  })
+
+  it('LABOLA_YOYOGI_DIAGNOSTIC_LEVEL=full で有効になる', () => {
+    expect(
+      isLabolaLoginDiagnosticsEnabled({
+        LABOLA_YOYOGI_DIAGNOSTIC_LEVEL: 'full',
+      })
+    ).toBe(true)
+  })
+
+  it('両方未設定なら無効になる', () => {
+    expect(
+      isLabolaLoginDiagnosticsEnabled({
+        LABOLA_YOYOGI_USERNAME: 'user',
+      })
+    ).toBe(false)
   })
 })

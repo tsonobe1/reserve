@@ -66,6 +66,28 @@ Postman の場合は `Authorization` タブで `Bearer Token` を選び、`<AUTH
 pnpm run deploy:production  # production env only, remote D1
 ```
 
+## Labola login diagnostics
+
+ログイン失敗の切り分け時だけ、診断ログを有効化できます。
+
+- `LABOLA_YOYOGI_LOGIN_DIAGNOSTIC=true`
+- または `LABOLA_YOYOGI_DIAGNOSTIC_LEVEL=full`
+
+有効時は、`login-page-get` / `login-post` / `login-post-redirect-get` で以下を出力します。
+
+- `response headers`（`set-cookie` は値を出さずメタ情報のみ）
+- `set-cookie` 件数・Cookie名・属性（`Secure` / `HttpOnly` / `SameSite` 等）
+- `turnstile` / `cf-chl` / `captcha` などの本文シグナル
+- 推定拒否理由（`likelyRejectionReasons`）
+
+```txt
+# production
+wrangler secret put LABOLA_YOYOGI_LOGIN_DIAGNOSTIC --env production
+# 入力値: true
+```
+
+調査後はログ量を減らすため、値を空文字へ更新または削除してください。
+
 ## Type generation
 
 [For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):

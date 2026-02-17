@@ -2,10 +2,12 @@ import type { ReserveParams } from '../../domain/reserve-request-schema'
 import {
   buildBookingUrl,
   buildLoginForm,
+  emitLabolaLoginDiagnostics,
   extractFormValues,
   extractCookieHeader,
   fillCustomerInfoRequiredValues,
   getResponseSetCookieHeader,
+  isLabolaLoginDiagnosticsEnabled,
   mergeCookieHeader,
   postLogin,
   prepareLogin,
@@ -68,7 +70,8 @@ const isLoginOnlyMode = (env: LabolaYoyogiClientEnv): boolean => {
 const followLoginRedirects = async (
   reserveId: string,
   loginResponse: Response,
-  currentCookieHeader: string | undefined
+  currentCookieHeader: string | undefined,
+  loginDiagnosticsEnabled: boolean
 ): Promise<string | undefined> => {
   let response = loginResponse
   let cookieHeader = currentCookieHeader
@@ -110,6 +113,15 @@ const followLoginRedirects = async (
       bodySize: redirectBodyPreview.length,
       bodyPreview: redirectBodyPreview.slice(0, 300),
     })
+    if (loginDiagnosticsEnabled) {
+      emitLabolaLoginDiagnostics({
+        reserveId,
+        step: 'login-post-redirect-get',
+        response,
+        body: redirectBodyPreview,
+        requestCookieHeader: cookieHeader,
+      })
+    }
     cookieHeader = mergeCookieHeader(cookieHeader, getResponseSetCookieHeader(response))
     baseUrl = redirectedUrl
   }
@@ -144,16 +156,24 @@ export const executeLabolaYoyogiReservation = async (
   }
 
   const credentials = await prepareLogin(env, reserveId)
+  const loginDiagnosticsEnabled = isLabolaLoginDiagnosticsEnabled(env)
   const loginForm = buildLoginForm(credentials)
   let activeCookieHeader = credentials.loginSetCookieHeader
     ? extractCookieHeader(credentials.loginSetCookieHeader)
     : undefined
-  const loginResponse = await postLogin(reserveId, loginForm, activeCookieHeader)
+  const loginResponse = await postLogin(reserveId, loginForm, activeCookieHeader, {
+    loginDiagnosticsEnabled,
+  })
   activeCookieHeader = mergeCookieHeader(
     activeCookieHeader,
     getResponseSetCookieHeader(loginResponse)
   )
-  activeCookieHeader = await followLoginRedirects(reserveId, loginResponse, activeCookieHeader)
+  activeCookieHeader = await followLoginRedirects(
+    reserveId,
+    loginResponse,
+    activeCookieHeader,
+    loginDiagnosticsEnabled
+  )
   if (isLoginOnlyMode(env)) {
     console.info('Labolaログイン確認モードのためログイン後に処理を終了します', {
       id: reserveId,

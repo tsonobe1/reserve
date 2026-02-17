@@ -2,6 +2,8 @@ export type LabolaYoyogiClientEnv = {
   LABOLA_YOYOGI_USERNAME?: string
   LABOLA_YOYOGI_PASSWORD?: string
   LABOLA_YOYOGI_LOGIN_ONLY?: string
+  LABOLA_YOYOGI_LOGIN_DIAGNOSTIC?: string
+  LABOLA_YOYOGI_DIAGNOSTIC_LEVEL?: string
 }
 
 const LABOLA_YOYOGI_BASE_ORIGIN = 'https://yoyaku.labola.jp'
@@ -31,6 +33,15 @@ const LABOLA_LOGIN_USER_AGENT =
 const LABOLA_LOGIN_ACCEPT =
   'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
 const LABOLA_LOGIN_ACCEPT_LANGUAGE = 'ja,en;q=0.9'
+const LABOLA_LOGIN_DIAGNOSTIC_BODY_SIGNAL_PATTERNS: Array<{
+  key: string
+  pattern: RegExp
+}> = [
+  { key: 'turnstile', pattern: /turnstile|cf-turnstile|challenges\.cloudflare\.com\/turnstile/i },
+  { key: 'cf-chl', pattern: /cf-chl|cdn-cgi\/challenge-platform|cf_chl/i },
+  { key: 'captcha', pattern: /captcha|hcaptcha|recaptcha|g-recaptcha/i },
+  { key: 'bot-check', pattern: /verify you are human|checking your browser|attention required/i },
+]
 const LABOLA_YOYOGI_CONFIRM_SUCCESS_HINTS = [
   '予約が完了しました',
   '予約完了',
@@ -190,6 +201,167 @@ const extractLoginErrorText = (html: string): string | undefined => {
   const matched = html.match(/<ul\b[^>]*class=(?:\"|')[^"']*\berrorlist\b[^"']*(?:\"|')[^>]*>[\s\S]*?<li>([\s\S]*?)<\/li>/i)
   if (!matched) return undefined
   return normalizeHtmlText(matched[1]) || undefined
+}
+
+const parseBoolLike = (value: string | undefined): boolean => {
+  if (!value) return false
+  const normalized = value.trim().toLowerCase()
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
+}
+
+export const isLabolaLoginDiagnosticsEnabled = (env: LabolaYoyogiClientEnv): boolean => {
+  if (parseBoolLike(env.LABOLA_YOYOGI_LOGIN_DIAGNOSTIC)) {
+    return true
+  }
+  const level = env.LABOLA_YOYOGI_DIAGNOSTIC_LEVEL?.trim().toLowerCase()
+  return level === 'full' || level === 'debug' || level === 'trace'
+}
+
+const toMaskedRequestHeaders = (headers: Record<string, string>): Record<string, string> => {
+  const masked: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headers)) {
+    const lower = key.toLowerCase()
+    if (lower === 'cookie') {
+      masked[key] = `keys:${toCookieSummary(value)}`
+      continue
+    }
+    if (lower.includes('csrf') || lower.includes('authorization')) {
+      masked[key] = '***'
+      continue
+    }
+    masked[key] = value
+  }
+  return masked
+}
+
+type SetCookieDiagnostics = {
+  name: string
+  valueLength: number
+  secure: boolean
+  httpOnly: boolean
+  sameSite?: string
+  domain?: string
+  path?: string
+  maxAge?: string
+  hasExpires: boolean
+}
+
+const parseSetCookieDiagnostics = (cookie: string): SetCookieDiagnostics | undefined => {
+  const parts = cookie
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  if (parts.length === 0) return undefined
+  const first = parts[0]
+  const firstSeparator = first.indexOf('=')
+  if (firstSeparator <= 0) return undefined
+  const name = first.slice(0, firstSeparator).trim()
+  const value = first.slice(firstSeparator + 1).trim()
+  if (!name) return undefined
+
+  const diagnostics: SetCookieDiagnostics = {
+    name,
+    valueLength: value.length,
+    secure: false,
+    httpOnly: false,
+    hasExpires: false,
+  }
+
+  for (const attr of parts.slice(1)) {
+    const separator = attr.indexOf('=')
+    const attrKey = (separator >= 0 ? attr.slice(0, separator) : attr).trim().toLowerCase()
+    const attrValue = (separator >= 0 ? attr.slice(separator + 1) : '').trim()
+
+    if (attrKey === 'secure') diagnostics.secure = true
+    if (attrKey === 'httponly') diagnostics.httpOnly = true
+    if (attrKey === 'samesite') diagnostics.sameSite = attrValue
+    if (attrKey === 'domain') diagnostics.domain = attrValue
+    if (attrKey === 'path') diagnostics.path = attrValue
+    if (attrKey === 'max-age') diagnostics.maxAge = attrValue
+    if (attrKey === 'expires') diagnostics.hasExpires = true
+  }
+
+  return diagnostics
+}
+
+const collectHeaderValues = (headers: Headers): Record<string, string[]> => {
+  const collected: Record<string, string[]> = {}
+  for (const [key, value] of headers.entries()) {
+    if (key.toLowerCase() === 'set-cookie') continue
+    if (!collected[key]) {
+      collected[key] = []
+    }
+    collected[key].push(value)
+  }
+  return collected
+}
+
+const collectBodySignals = (body: string): string[] => {
+  return LABOLA_LOGIN_DIAGNOSTIC_BODY_SIGNAL_PATTERNS.filter(({ pattern }) => pattern.test(body)).map(
+    ({ key }) => key
+  )
+}
+
+const buildLikelyRejectionReasons = (args: {
+  response: Response
+  body: string
+  bodySignals: string[]
+  loginErrorText?: string
+}): string[] => {
+  const reasons = new Set<string>()
+  const cfMitigated = args.response.headers.get('cf-mitigated')
+  if (cfMitigated) reasons.add(`cf-mitigated:${cfMitigated}`)
+  if (args.bodySignals.length > 0) reasons.add('challenge-signal-detected')
+  if (args.loginErrorText?.includes('ログイン出来ません。')) reasons.add('generic-login-rejected')
+  if (args.body.includes(LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT)) reasons.add('credential-message-detected')
+  if (args.body.includes(LABOLA_YOYOGI_INVALID_CREDENTIALS_ALT_TEXT))
+    reasons.add('credential-message-alt-detected')
+  if (args.body.includes(LABOLA_YOYOGI_LOGIN_PAGE_TITLE_TEXT)) reasons.add('returned-to-login-page')
+  if (reasons.size === 0) reasons.add('unknown')
+  return Array.from(reasons)
+}
+
+export const emitLabolaLoginDiagnostics = (args: {
+  reserveId: string
+  step: 'login-page-get' | 'login-post' | 'login-post-redirect-get'
+  response: Response
+  body: string
+  requestHeaders?: Record<string, string>
+  requestCookieHeader?: string
+  loginErrorText?: string
+}): void => {
+  const setCookieHeaders = getResponseSetCookieHeaders(args.response)
+  const setCookieDiagnostics = setCookieHeaders
+    .map(parseSetCookieDiagnostics)
+    .filter((cookie): cookie is SetCookieDiagnostics => Boolean(cookie))
+  const bodySignals = collectBodySignals(args.body)
+  const likelyRejectionReasons = buildLikelyRejectionReasons({
+    response: args.response,
+    body: args.body,
+    bodySignals,
+    loginErrorText: args.loginErrorText,
+  })
+  console.warn('Labolaログイン診断', {
+    id: args.reserveId,
+    step: args.step,
+    status: args.response.status,
+    location: args.response.headers.get('location') ?? undefined,
+    redirected: args.response.redirected,
+    finalUrl: args.response.url,
+    responseHeaders: collectHeaderValues(args.response.headers),
+    setCookieCount: setCookieHeaders.length,
+    setCookieNames: setCookieDiagnostics.map((cookie) => cookie.name),
+    setCookieDiagnostics,
+    requestHeaderKeys: args.requestHeaders ? Object.keys(args.requestHeaders) : [],
+    requestHeaders: args.requestHeaders ? toMaskedRequestHeaders(args.requestHeaders) : undefined,
+    requestCookieKeys: toCookieSummary(args.requestCookieHeader),
+    bodySignals,
+    likelyRejectionReasons,
+    bodySize: args.body.length,
+    bodyPreview: args.body.slice(0, LABOLA_HTTP_BODY_PREVIEW_LIMIT),
+    title: extractTitleText(args.body),
+    loginErrorText: args.loginErrorText,
+  })
 }
 
 const buildCustomerConfirmResponseDiagnostics = (
@@ -368,7 +540,10 @@ export const mergeCookieHeader = (
 export const postLogin = async (
   reserveId: string,
   form: URLSearchParams,
-  cookieHeader?: string
+  cookieHeader?: string,
+  options?: {
+    loginDiagnosticsEnabled?: boolean
+  }
 ): Promise<Response> => {
   try {
     // NOTE:
@@ -405,16 +580,28 @@ export const postLogin = async (
       body: form.toString(),
       redirect: 'manual',
     })
-    const responsePreview = await safeResponsePreview(response)
+    const responseBody = await response.clone().text()
     const locationHeader = response.headers.get('location') ?? undefined
     console.log('Labola HTTP Response', {
       id: reserveId,
       step: 'login-post',
       status: response.status,
       location: locationHeader,
-      bodySize: responsePreview.bodySize,
-      bodyPreview: responsePreview.preview,
+      bodySize: responseBody.length,
+      bodyPreview: responseBody.slice(0, LABOLA_HTTP_BODY_PREVIEW_LIMIT),
     })
+    const loginErrorText = extractLoginErrorText(responseBody)
+    if (options?.loginDiagnosticsEnabled) {
+      emitLabolaLoginDiagnostics({
+        reserveId,
+        step: 'login-post',
+        response,
+        body: responseBody,
+        requestHeaders: headers,
+        requestCookieHeader: cookieHeader,
+        loginErrorText,
+      })
+    }
     if (response.status >= 300 && response.status < 400) {
       return response
     }
@@ -422,7 +609,7 @@ export const postLogin = async (
       if (response.status >= 500) {
         throw new Error(ERROR_LOGIN_POST_UPSTREAM)
       }
-      const bodyPreview = (await response.clone().text()).slice(0, 200)
+      const bodyPreview = responseBody.slice(0, 200)
       console.error('LabolaログインPOSTが4xxで失敗しました', {
         id: reserveId,
         status: response.status,
@@ -430,8 +617,6 @@ export const postLogin = async (
       })
       throw new Error(`ログインPOSTに失敗しました: ${response.status}`)
     }
-    const responseBody = await response.clone().text()
-    const loginErrorText = extractLoginErrorText(responseBody)
     if (
       responseBody.includes(LABOLA_YOYOGI_INVALID_CREDENTIALS_TEXT) ||
       responseBody.includes(LABOLA_YOYOGI_INVALID_CREDENTIALS_ALT_TEXT) ||
@@ -519,11 +704,20 @@ export const prepareLogin = async (
   const csrfMiddlewareToken = extractFormValues(loginPageHtml).csrfmiddlewaretoken
   const loginSetCookieHeader = getResponseSetCookieHeader(loginPageResponse)
   const loginCookies = loginSetCookieHeader ? extractCookieHeader(loginSetCookieHeader) : undefined
+  const loginDiagnosticsEnabled = isLabolaLoginDiagnosticsEnabled(env)
   console.log('LabolaログインページのCSRFトークン抽出結果', {
     id: reserveId,
     hasCsrfMiddlewareToken: Boolean(csrfMiddlewareToken),
     loginPageCookieKeys: toCookieSummary(loginCookies),
   })
+  if (loginDiagnosticsEnabled) {
+    emitLabolaLoginDiagnostics({
+      reserveId,
+      step: 'login-page-get',
+      response: loginPageResponse,
+      body: loginPageHtml,
+    })
+  }
 
   return {
     username,

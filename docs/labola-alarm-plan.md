@@ -100,3 +100,28 @@
   - 予算超過時の `setAlarm(+15秒)` 引き継ぎ
 - 未完了:
   - なし（非スコープ項目を除く）
+
+## 現時点の課題（2026-02-17 JST）
+
+- 現象（production）:
+  - `ReserveDurableObject` の `alarm` は発火しているが、`login-post` が成功せず予約処理が止まる。
+  - 例: `2026-02-16T16:44:50.000Z`（`2026-02-17 01:44:50 JST`）の実行で、
+    - `login-page-get` は成功
+    - `hasCsrfMiddlewareToken: true`
+    - `loginPageCookieKeys: csrftoken`
+    - `login-post` は `status: 200` + ログインページへ戻る
+    - `loginErrorText: ログイン出来ません。`
+
+- 切り分け結果:
+  - シークレット（`LABOLA_YOYOGI_USERNAME` / `LABOLA_YOYOGI_PASSWORD`）は再設定済み。
+  - 同じ認証情報で、ローカル `curl` からは `POST /member/login/` が `302` で通るケースを確認。
+  - Worker 実行時のみ `200` でログインページ戻りになるため、資格情報不一致よりも実行元条件の影響が疑わしい。
+
+- 解釈:
+  - 現在の主課題は「アラーム未発火」ではなく「Worker 経由ログインが upstream 判定で拒否されること」。
+  - 先方の bot/risk 判定（送信元IP/ASN, フィンガープリント等）に起因する可能性が高い。
+
+- 対応候補（優先順）:
+  - Worker はスケジューラ専用にし、実ログインは固定IP環境（外部実行API）で実施する。
+  - 暫定的に `ログイン出来ません。` を短時間再試行対象へ追加し、ジッター付きで再試行する。
+  - 監視ログを維持し、`login-post` の `status/location/loginErrorText` を継続観測する。
