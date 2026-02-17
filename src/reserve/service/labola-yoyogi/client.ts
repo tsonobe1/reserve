@@ -213,6 +213,45 @@ const parseBoolLike = (value: string | undefined): boolean => {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
 }
 
+export const buildLabolaBrowserLikeHeaders = (args?: {
+  cookieHeader?: string
+  referer?: string
+  origin?: string
+  contentType?: string
+  csrfToken?: string
+}): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'User-Agent': LABOLA_LOGIN_USER_AGENT,
+    Accept: LABOLA_LOGIN_ACCEPT,
+    'Accept-Language': LABOLA_LOGIN_ACCEPT_LANGUAGE,
+  }
+  if (args?.contentType) headers['Content-Type'] = args.contentType
+  if (args?.origin) headers.Origin = args.origin
+  if (args?.referer) headers.Referer = args.referer
+  if (args?.cookieHeader) headers.Cookie = args.cookieHeader
+  if (args?.csrfToken) headers['X-CSRFToken'] = args.csrfToken
+  return headers
+}
+
+export const buildLabolaCurlLikeHeaders = (args?: {
+  cookieHeader?: string
+  referer?: string
+  origin?: string
+  contentType?: string
+  csrfToken?: string
+}): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'User-Agent': LABOLA_LOGIN_CURL_USER_AGENT,
+    Accept: '*/*',
+  }
+  if (args?.contentType) headers['Content-Type'] = args.contentType
+  if (args?.origin) headers.Origin = args.origin
+  if (args?.referer) headers.Referer = args.referer
+  if (args?.cookieHeader) headers.Cookie = args.cookieHeader
+  if (args?.csrfToken) headers['X-CSRFToken'] = args.csrfToken
+  return headers
+}
+
 export const isLabolaLoginDiagnosticsEnabled = (env: LabolaYoyogiClientEnv): boolean => {
   if (parseBoolLike(env.LABOLA_YOYOGI_LOGIN_DIAGNOSTIC)) {
     return true
@@ -611,31 +650,17 @@ export const postLogin = async (
     const buildLoginHeaders = (
       profile: 'browser_like' | 'curl_like'
     ): Record<string, string> => {
-      const headers: Record<string, string> =
-        profile === 'curl_like'
-          ? {
-              'User-Agent': LABOLA_LOGIN_CURL_USER_AGENT,
-              Accept: '*/*',
-              'Content-Type': 'application/x-www-form-urlencoded',
-              Origin: LABOLA_YOYOGI_ORIGIN,
-              Referer: LABOLA_YOYOGI_LOGIN_URL,
-            }
-          : {
-              'User-Agent': LABOLA_LOGIN_USER_AGENT,
-              Accept: LABOLA_LOGIN_ACCEPT,
-              'Accept-Language': LABOLA_LOGIN_ACCEPT_LANGUAGE,
-              'Content-Type': 'application/x-www-form-urlencoded',
-              Origin: LABOLA_YOYOGI_ORIGIN,
-              Referer: LABOLA_YOYOGI_LOGIN_URL,
-            }
-      if (cookieHeader) {
-        headers.Cookie = cookieHeader
-      }
       const csrfToken = form.get('csrfmiddlewaretoken')
-      if (csrfToken) {
-        headers['X-CSRFToken'] = csrfToken
+      const baseArgs = {
+        cookieHeader,
+        origin: LABOLA_YOYOGI_ORIGIN,
+        referer: LABOLA_YOYOGI_LOGIN_URL,
+        contentType: 'application/x-www-form-urlencoded',
+        csrfToken: csrfToken ?? undefined,
       }
-      return headers
+      return profile === 'curl_like'
+        ? buildLabolaCurlLikeHeaders(baseArgs)
+        : buildLabolaBrowserLikeHeaders(baseArgs)
     }
 
     const headers = buildLoginHeaders('browser_like')
@@ -813,6 +838,7 @@ export const prepareLogin = async (
   }
 
   let loginPageResponse: Response
+  const loginPageRequestHeaders = buildLabolaBrowserLikeHeaders()
   try {
     console.log('Labola HTTP Request', {
       id: reserveId,
@@ -821,7 +847,10 @@ export const prepareLogin = async (
       url: LABOLA_YOYOGI_LOGIN_URL,
       payload: null,
     })
-    loginPageResponse = await fetch(LABOLA_YOYOGI_LOGIN_URL, { method: 'GET' })
+    loginPageResponse = await fetch(LABOLA_YOYOGI_LOGIN_URL, {
+      method: 'GET',
+      headers: loginPageRequestHeaders,
+    })
   } catch (error) {
     console.error('Labolaログインページ取得中に通信エラーが発生しました', {
       id: reserveId,
@@ -859,6 +888,7 @@ export const prepareLogin = async (
       step: 'login-page-get',
       response: loginPageResponse,
       body: loginPageHtml,
+      requestHeaders: loginPageRequestHeaders,
     })
   }
 
@@ -1010,16 +1040,14 @@ export const submitCustomerForms = async (
     throw new Error('customer-info/customer-confirm 送信に必要なCookieがありません')
   }
 
-  const customerInfoHeaders: Record<string, string> = {
-    'Content-Type': 'application/x-www-form-urlencoded',
-    Referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
-    Origin: LABOLA_YOYOGI_ORIGIN,
-  }
-  customerInfoHeaders.Cookie = cookieHeader
   const customerInfoCsrfToken = customerInfoForm.get('csrfmiddlewaretoken')
-  if (customerInfoCsrfToken) {
-    customerInfoHeaders['X-CSRFToken'] = customerInfoCsrfToken
-  }
+  const customerInfoHeaders = buildLabolaBrowserLikeHeaders({
+    cookieHeader,
+    origin: LABOLA_YOYOGI_ORIGIN,
+    referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
+    contentType: 'application/x-www-form-urlencoded',
+    csrfToken: customerInfoCsrfToken ?? undefined,
+  })
 
   let customerInfoResponse: Response
   try {
@@ -1061,16 +1089,14 @@ export const submitCustomerForms = async (
   const mergedCustomerConfirmForm = mergeFormValues(customerConfirmDefaults, customerConfirmForm)
   const customerConfirmCookieHeader =
     mergeCookieHeader(cookieHeader, customerInfoSetCookieHeader) ?? cookieHeader
-  const customerConfirmHeaders: Record<string, string> = {
-    'Content-Type': 'application/x-www-form-urlencoded',
-    Referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
-    Origin: LABOLA_YOYOGI_ORIGIN,
-    Cookie: customerConfirmCookieHeader,
-  }
   const customerConfirmCsrfToken = mergedCustomerConfirmForm.get('csrfmiddlewaretoken')
-  if (customerConfirmCsrfToken) {
-    customerConfirmHeaders['X-CSRFToken'] = customerConfirmCsrfToken
-  }
+  const customerConfirmHeaders = buildLabolaBrowserLikeHeaders({
+    cookieHeader: customerConfirmCookieHeader,
+    origin: LABOLA_YOYOGI_ORIGIN,
+    referer: LABOLA_YOYOGI_CUSTOMER_INFO_URL,
+    contentType: 'application/x-www-form-urlencoded',
+    csrfToken: customerConfirmCsrfToken ?? undefined,
+  })
   if (options?.skipFinalSubmit) {
     console.log('Dry run: customer-confirm最終送信をスキップします', {
       id: reserveId,

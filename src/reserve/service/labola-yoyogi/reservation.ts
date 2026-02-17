@@ -1,6 +1,7 @@
 import type { ReserveParams } from '../../domain/reserve-request-schema'
 import {
   buildBookingUrl,
+  buildLabolaBrowserLikeHeaders,
   buildLoginForm,
   emitLabolaLoginDiagnostics,
   extractFormValues,
@@ -136,10 +137,14 @@ const followLoginRedirects = async (
       payload: null,
     })
 
+    const requestHeaders = buildLabolaBrowserLikeHeaders({
+      cookieHeader,
+      referer: baseUrl,
+    })
     try {
       response = await fetch(redirectedUrl, {
         method: 'GET',
-        headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+        headers: requestHeaders,
         redirect: 'manual',
       })
     } catch {
@@ -163,6 +168,7 @@ const followLoginRedirects = async (
         step: 'login-post-redirect-get',
         response,
         body: redirectBodyPreview,
+        requestHeaders,
         requestCookieHeader: cookieHeader,
       })
     }
@@ -256,6 +262,9 @@ export const executeLabolaYoyogiReservation = async (
   }
   const bookingUrl = buildBookingUrl(siteCourtNo, params.date, params.startTime, params.endTime)
   let bookingResponse: Response
+  const bookingPageRequestHeaders = buildLabolaBrowserLikeHeaders({
+    cookieHeader: activeCookieHeader,
+  })
   try {
     console.log('Labola HTTP Request', {
       id: reserveId,
@@ -267,11 +276,7 @@ export const executeLabolaYoyogiReservation = async (
     })
     bookingResponse = await fetch(bookingUrl, {
       method: 'GET',
-      headers: activeCookieHeader
-        ? {
-            Cookie: activeCookieHeader,
-          }
-        : undefined,
+      headers: bookingPageRequestHeaders,
     })
   } catch {
     throw new Error('予約ページ取得中に通信エラーが発生しました')
@@ -301,6 +306,10 @@ export const executeLabolaYoyogiReservation = async (
           to: redirectedUrl,
         })
       }
+      const bookingRedirectRequestHeaders = buildLabolaBrowserLikeHeaders({
+        cookieHeader: activeCookieHeader,
+        referer: bookingUrl,
+      })
       try {
         console.log('Labola HTTP Request', {
           id: reserveId,
@@ -312,11 +321,7 @@ export const executeLabolaYoyogiReservation = async (
         })
         bookingResponse = await fetch(redirectedUrl, {
           method: 'GET',
-          headers: activeCookieHeader
-            ? {
-                Cookie: activeCookieHeader,
-              }
-            : undefined,
+          headers: bookingRedirectRequestHeaders,
         })
       } catch {
         throw new Error('予約ページリダイレクト先取得中に通信エラーが発生しました')
