@@ -12,6 +12,10 @@ const SEEDED_TIMESTAMP = '2026-02-07T00:00:00.000Z'
 const SEEDED_PARAMS = { name: 'Test Guest', contact: 'guest@example.com' }
 const AUTH_TOKEN = 'test-token'
 
+const futureExecuteAt = (offsetMs: number = 24 * 60 * 60 * 1000): string => {
+  return new Date(Date.now() + offsetMs).toISOString()
+}
+
 const withAuth = (init: RequestInit = {}): RequestInit => {
   const headers = new Headers(init.headers)
   headers.set('Authorization', `Bearer ${AUTH_TOKEN}`)
@@ -92,7 +96,7 @@ describe('Reserve API', () => {
     it('DO から予約詳細(アラーム情報)を取得できる', async () => {
       const requestPayload = {
         params: { name: 'Get Detail Guest', contact: 'detail@example.com' },
-        executeAt: '2026-03-02T10:00:00.000Z',
+        executeAt: futureExecuteAt(),
       }
 
       const createdResponse = await SELF.fetch(
@@ -125,7 +129,7 @@ describe('Reserve API', () => {
 
   describe('POST /reserves', () => {
     it('UI 由来の payload で予約を作成できる', async () => {
-      const executeAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      const executeAt = futureExecuteAt()
       const requestPayload = {
         params: {
           facility: '1',
@@ -171,7 +175,7 @@ describe('Reserve API', () => {
     it('予約を作成できる', async () => {
       const requestPayload = {
         params: { name: 'New Guest', contact: 'new@example.com' },
-        executeAt: '2026-03-01T10:00:00.000Z',
+        executeAt: futureExecuteAt(25 * 60 * 60 * 1000),
         status: 'pending',
       }
 
@@ -225,6 +229,8 @@ describe('Reserve API', () => {
     })
 
     it('status を指定しても pending で作成される', async () => {
+      const executeAt = futureExecuteAt(26 * 60 * 60 * 1000)
+
       const response = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
           ...withAuth({
@@ -232,7 +238,7 @@ describe('Reserve API', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               params: { name: 'Force Pending' },
-              executeAt: '2026-03-01T11:00:00.000Z',
+              executeAt,
               status: 'done',
             }),
           }),
