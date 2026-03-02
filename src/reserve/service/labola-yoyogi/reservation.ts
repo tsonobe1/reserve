@@ -330,6 +330,17 @@ export const executeLabolaYoyogiReservation = async (
         throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
       }
     } else {
+      const bookingErrorPreview = await bookingResponse.clone().text()
+      console.log('Labola HTTP Response', {
+        id: reserveId,
+        step: 'booking-page-get',
+        status: bookingResponse.status,
+        location: bookingResponse.headers.get('location') ?? undefined,
+        redirected: bookingResponse.redirected,
+        url: bookingResponse.url,
+        bodySize: bookingErrorPreview.length,
+        bodyPreview: bookingErrorPreview.slice(0, 300),
+      })
       throw new Error(`予約ページ取得に失敗しました: ${bookingResponse.status}`)
     }
   }

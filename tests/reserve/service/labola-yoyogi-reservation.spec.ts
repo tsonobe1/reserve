@@ -412,6 +412,7 @@ describe('executeLabolaYoyogiReservation', () => {
   })
 
   it('予約URL GET が 500 の場合は例外を投げる', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const fetchMock = mockFetch(async (url, init) => {
       if (url === LOGIN_URL && init?.method === 'GET') {
         return new Response('', {
@@ -434,6 +435,16 @@ describe('executeLabolaYoyogiReservation', () => {
       executeLabolaYoyogiReservation(VALID_ENV, RESERVE_ID, createParams())
     ).rejects.toThrow('予約ページ取得に失敗しました: 500')
     expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(logSpy).toHaveBeenCalledWith(
+      'Labola HTTP Response',
+      expect.objectContaining({
+        id: RESERVE_ID,
+        step: 'booking-page-get',
+        status: 500,
+        redirected: false,
+        url: '',
+      })
+    )
   })
 
   it('予約URL GET中に通信エラーが発生した場合は例外を投げる', async () => {
