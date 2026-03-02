@@ -123,6 +123,53 @@ describe('submitCustomerForms', () => {
     )
   })
 
+  it('customer-confirm を送信する: customer-info 応答に submit_conf があっても最終送信では除外する', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    const fetchMock = mockFetch(async (url) => {
+      if (url === CUSTOMER_INFO_URL) {
+        return new Response(
+          '<input type="hidden" name="csrfmiddlewaretoken" value="csrf-next">' +
+            '<input type="submit" name="submit_conf" value="予約内容の確認">',
+          { status: 200 }
+        )
+      }
+      return new Response(CUSTOMER_CONFIRM_SUCCESS_HTML, { status: 200 })
+    })
+    const customerInfoForm = new URLSearchParams({
+      csrfmiddlewaretoken: 'csrf-current',
+      submit_conf: '予約内容の確認',
+    })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await submitCustomerForms?.(
+      RESERVE_ID,
+      customerInfoForm,
+      customerConfirmForm,
+      'csrftoken=current-csrf; sessionid=current-session'
+    )
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      CUSTOMER_CONFIRM_URL,
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('csrfmiddlewaretoken=csrf-next'),
+      })
+    )
+    const finalRequest = fetchMock.mock.calls[1]?.[1]
+    expect(finalRequest).toBeDefined()
+    expect(String(finalRequest?.body)).toContain('submit_ok=%E7%94%B3%E8%BE%BC%E3%82%80')
+    expect(String(finalRequest?.body)).not.toContain('submit_conf=')
+  })
+
   it('skipFinalSubmit=true の場合は customer-confirm POST を送信しない', async () => {
     const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
       | ((
@@ -234,6 +281,62 @@ describe('submitCustomerForms', () => {
         'csrftoken=abc; sessionid=xyz'
       )
     ).rejects.toThrow('customer-confirm 応答から予約完了を確認できませんでした')
+  })
+
+  it('customer-confirm の応答を記録する: リダイレクトされたとき遷移先URLをログへ含める', async () => {
+    const submitCustomerForms = (labolaYoyogi as Record<string, unknown>).submitCustomerForms as
+      | ((
+          reserveId: string,
+          customerInfoForm: URLSearchParams,
+          customerConfirmForm: URLSearchParams,
+          cookieHeader?: string
+        ) => Promise<void>)
+      | undefined
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    mockFetch(async (url) => {
+      if (url === CUSTOMER_INFO_URL) {
+        return new Response('<input type="hidden" name="csrfmiddlewaretoken" value="csrf-token">', {
+          status: 200,
+        })
+      }
+      return {
+        ok: true,
+        status: 200,
+        redirected: true,
+        url: 'https://yoyaku.labola.jp/r/shop/3094/calendar/',
+        headers: new Headers(),
+        text: async () =>
+          '<title>国立代々木競技場フットサルコート｜空き情報・予約 - LaBOLA総合予約</title>',
+        clone() {
+          return this
+        },
+      } as unknown as Response
+    })
+    const customerInfoForm = new URLSearchParams({ submit_conf: '予約内容の確認' })
+    const customerConfirmForm = new URLSearchParams({ submit_ok: '申込む' })
+
+    await expect(
+      submitCustomerForms?.(
+        RESERVE_ID,
+        customerInfoForm,
+        customerConfirmForm,
+        'csrftoken=abc; sessionid=xyz'
+      )
+    ).rejects.toThrow('customer-confirm 応答から予約完了を確認できませんでした')
+
+    expect(logSpy).toHaveBeenCalledWith(
+      'Labola HTTP Response',
+      expect.objectContaining({
+        id: RESERVE_ID,
+        step: 'customer-confirm-post',
+        status: 200,
+        redirected: true,
+        url: 'https://yoyaku.labola.jp/r/shop/3094/calendar/',
+        location: undefined,
+      })
+    )
   })
 
   it('customer-info が 500 の場合は例外を投げる', async () => {

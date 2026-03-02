@@ -1018,6 +1018,12 @@ const mergeFormValues = (
   return merged
 }
 
+const pruneCustomerConfirmFormValues = (form: URLSearchParams): URLSearchParams => {
+  const pruned = new URLSearchParams(form.toString())
+  pruned.delete('submit_conf')
+  return pruned
+}
+
 const ensurePostSuccess = (
   response: Response,
   action: 'customer-info' | 'customer-confirm'
@@ -1086,7 +1092,9 @@ export const submitCustomerForms = async (
     throw new Error('希望時間帯は予約不可（すでに予約済み）')
   }
   const customerConfirmDefaults = extractFormValues(await customerInfoResponse.text())
-  const mergedCustomerConfirmForm = mergeFormValues(customerConfirmDefaults, customerConfirmForm)
+  const mergedCustomerConfirmForm = pruneCustomerConfirmFormValues(
+    mergeFormValues(customerConfirmDefaults, customerConfirmForm)
+  )
   const customerConfirmCookieHeader =
     mergeCookieHeader(cookieHeader, customerInfoSetCookieHeader) ?? cookieHeader
   const customerConfirmCsrfToken = mergedCustomerConfirmForm.get('csrfmiddlewaretoken')
@@ -1128,6 +1136,9 @@ export const submitCustomerForms = async (
     id: reserveId,
     step: 'customer-confirm-post',
     status: customerConfirmResponse.status,
+    location: customerConfirmResponse.headers.get('location') ?? undefined,
+    redirected: customerConfirmResponse.redirected,
+    url: customerConfirmResponse.url,
     bodySize: customerConfirmPreview.bodySize,
     bodyPreview: customerConfirmPreview.preview,
   })
