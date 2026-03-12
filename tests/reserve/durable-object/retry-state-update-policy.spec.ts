@@ -40,6 +40,44 @@ describe('updateRetryStateOnRetryableError', () => {
     expect(setAlarm).toHaveBeenCalledWith(now + 15_000)
   })
 
+  it('予約ページ取得 5xx でも retry_state を更新する', async () => {
+    const updateRetryStateOnRetryableError = (reserveDoModule as Record<string, unknown>)
+      .updateRetryStateOnRetryableError as
+      | ((
+          storage: {
+            put: (key: string, value: unknown) => Promise<void>
+            setAlarm: (time: number) => Promise<void>
+          },
+          current: { attempt: number; alarmStartedAt: number } | undefined,
+          error: Error,
+          now: number
+        ) => Promise<boolean>)
+      | undefined
+
+    const put = vi.fn(async () => {})
+    const setAlarm = vi.fn(async () => {})
+    const now = 1_700_000_000_000
+
+    expect(updateRetryStateOnRetryableError).toBeTypeOf('function')
+
+    await expect(
+      updateRetryStateOnRetryableError?.(
+        { put, setAlarm },
+        { attempt: 1, alarmStartedAt: now - 15_000 },
+        new Error('予約ページ取得に失敗しました: 504'),
+        now
+      )
+    ).resolves.toBe(true)
+
+    expect(put).toHaveBeenCalledTimes(1)
+    expect(put).toHaveBeenCalledWith('retry_state', {
+      attempt: 2,
+      alarmStartedAt: now - 15_000,
+    })
+    expect(setAlarm).toHaveBeenCalledTimes(1)
+    expect(setAlarm).toHaveBeenCalledWith(now + 15_000)
+  })
+
   it('非再試行エラー(認証失敗/4xx)では retry_state を更新しない', async () => {
     const updateRetryStateOnRetryableError = (reserveDoModule as Record<string, unknown>)
       .updateRetryStateOnRetryableError as

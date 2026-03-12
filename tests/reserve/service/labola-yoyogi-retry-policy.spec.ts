@@ -12,6 +12,7 @@ describe('shouldRetryError', () => {
     expect(shouldRetry?.(new Error('ログインPOST中に通信エラーが発生しました'))).toBe(true)
     expect(shouldRetry?.(new Error('customer-info 送信中に通信エラーが発生しました'))).toBe(true)
     expect(shouldRetry?.(new Error('customer-confirm 送信中に通信エラーが発生しました'))).toBe(true)
+    expect(shouldRetry?.(new Error('予約ページ取得に失敗しました: 504'))).toBe(true)
     expect(shouldRetry?.(new Error('customer-info 送信に失敗しました: 500'))).toBe(true)
     expect(shouldRetry?.(new Error('customer-confirm 送信に失敗しました: 503'))).toBe(true)
   })

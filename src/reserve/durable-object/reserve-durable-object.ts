@@ -18,11 +18,16 @@ const isCustomerForm5xxError = (message: string): boolean => {
   return /^customer-(?:info|confirm) 送信に失敗しました: 5\d\d$/.test(message)
 }
 
+const isBookingPage5xxError = (message: string): boolean => {
+  return /^予約ページ取得に失敗しました: 5\d\d$/.test(message)
+}
+
 export const shouldIncrementRetryState = (error: Error): boolean => {
   return (
     error.message.includes('相手側サーバ障害') ||
     error.message.includes('通信エラーが発生しました') ||
-    isCustomerForm5xxError(error.message)
+    isCustomerForm5xxError(error.message) ||
+    isBookingPage5xxError(error.message)
   )
 }
 
