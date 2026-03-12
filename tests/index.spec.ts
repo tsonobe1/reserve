@@ -290,6 +290,7 @@ describe('Reserve API', () => {
 
   describe('DELETE /reserves/:id', () => {
     it('予約を削除すると DO の設定も削除される', async () => {
+      const executeAt = futureExecuteAt(27 * 60 * 60 * 1000)
       const createResponse = await SELF.fetch(
         new Request('http://localhost:8787/reserves', {
           ...withAuth({
@@ -297,7 +298,7 @@ describe('Reserve API', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               params: { name: 'Delete Target' },
-              executeAt: '2026-03-03T10:00:00.000Z',
+              executeAt,
             }),
           }),
         })
